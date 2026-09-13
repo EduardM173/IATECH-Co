@@ -1,13 +1,141 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// database/prisma/schema.prisma
+// IATECH Co. - Diseno de base de datos de activos por area
+// Prisma ORM v7 + PostgreSQL
 
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../generated/client"
 }
 
 datasource db {
   provider = "postgresql"
+  // La URL de conexion ya NO va aqui en Prisma 7.
+  // Vive en prisma.config.ts (ver ese archivo).
+}
+
+// ---------------------------------------------------------
+// CATEGORIA - una fila por cada area de la empresa
+// ---------------------------------------------------------
+model Categoria {
+  id_categoria     Int       @id @default(autoincrement())
+  nombre_categoria String    @unique @db.VarChar(50)
+
+  activos          Activo[]
+  usuarios         Usuario[]
+
+  @@map("categoria")
+}
+
+// ---------------------------------------------------------
+// ACTIVO - tabla base, campos comunes a todas las areas
+// ---------------------------------------------------------
+model Activo {
+  id_activo      Int       @id @default(autoincrement())
+  codigo         String    @unique @db.VarChar(20)
+  descripcion    String    @db.VarChar(255)
+  id_categoria   Int
+  categoria      Categoria @relation(fields: [id_categoria], references: [id_categoria])
+  fecha_registro DateTime  @default(now()) @db.Date
+  estado         String    @default("ACTIVO") @db.VarChar(20)
+
+  hardware  Hardware?
+  software  Software?
+  redes     Redes?
+  seguridad Seguridad?
+  calidad   Calidad?
+  cloud     Cloud?
+  bigdata   BigData?
+
+  @@map("activo")
+}
+
+// ---------------------------------------------------------
+// Tablas de detalle por area (1 a 1 con ACTIVO)
+// onDelete: Cascade -> al borrar el ACTIVO, se borra su detalle solo
+// ---------------------------------------------------------
+model Hardware {
+  id_activo    Int     @id
+  activo       Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  numero_serie String  @db.VarChar(50)
+  modelo       String? @db.VarChar(50)
+  marca        String? @db.VarChar(50)
+
+  @@map("hardware")
+}
+
+model Software {
+  id_activo        Int       @id
+  activo           Activo    @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  version          String?   @db.VarChar(20)
+  tipo_licencia    String?   @db.VarChar(50)
+  fecha_expiracion DateTime? @db.Date
+
+  @@map("software")
+}
+
+model Redes {
+  id_activo     Int     @id
+  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  direccion_ip  String? @db.VarChar(45)
+  tipo_conexion String? @db.VarChar(50)
+  ancho_banda   String? @db.VarChar(30)
+
+  @@map("redes")
+}
+
+model Seguridad {
+  id_activo      Int     @id
+  activo         Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  tipo_seguridad String? @db.VarChar(50)
+  nivel_acceso   String? @db.VarChar(30)
+  protocolo      String? @db.VarChar(50)
+
+  @@map("seguridad")
+}
+
+model Calidad {
+  id_activo       Int       @id
+  activo          Activo    @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  norma_iso       String?   @db.VarChar(30)
+  certificacion   String?   @db.VarChar(50)
+  fecha_auditoria DateTime? @db.Date
+
+  @@map("calidad")
+}
+
+model Cloud {
+  id_activo     Int     @id
+  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  proveedor     String? @db.VarChar(50)
+  tipo_servicio String? @db.VarChar(50)
+  capacidad     String? @db.VarChar(30)
+
+  @@map("cloud")
+}
+
+model BigData {
+  id_activo     Int     @id
+  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
+  herramienta   String? @db.VarChar(50)
+  tipo_dato     String? @db.VarChar(50)
+  volumen_datos String? @db.VarChar(30)
+
+  @@map("big_data_analiticas")
+}
+
+// ---------------------------------------------------------
+// USUARIO - login por area
+// ---------------------------------------------------------
+model Usuario {
+  id_usuario      Int       @id @default(autoincrement())
+  nombre          String    @db.VarChar(100)
+  correo          String    @unique @db.VarChar(100)
+  contrasena_hash String    @db.VarChar(255)
+  id_categoria    Int
+  categoria       Categoria @relation(fields: [id_categoria], references: [id_categoria])
+  rol             String    @default("USUARIO") @db.VarChar(20)
+  estado          String    @default("ACTIVO") @db.VarChar(20)
+  fecha_creacion  DateTime  @default(now())
+
+  @@map("usuario")
 }

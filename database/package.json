@@ -9,10 +9,11 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx seed.ts"
+    "db:seed": "tsx --env-file=.env seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "catalog:prisma",
     "pg": "^8.13.0",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.5"

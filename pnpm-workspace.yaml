@@ -1,0 +1,18 @@
+packages:
+  - "backend"
+  - "database"
+  - "frontend"
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@scarf/scarf': true
+  bcrypt: true
+  esbuild: true
+  prisma: true
+  unrs-resolver: true
+
+catalogs:
+  prisma:
+    prisma: 7.10.0
+    '@prisma/client': 7.10.0

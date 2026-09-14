@@ -66,7 +66,6 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { correo, contrasena } = loginDto;
 
-    // 1. Buscar usuario por correo y traer su categoria relacionada
     const user = await this.prisma.usuario.findUnique({
       where: { correo },
       include: { categoria: true },
@@ -90,7 +89,7 @@ export class AuthService {
     // 4. Generar un token básico nativo (Para hacerlo sin librerias externas como @nestjs/jwt)
     // En producción se recomienda usar JWT real.
     const tokenPayload = Buffer.from(JSON.stringify({ id: user.id_usuario, correo: user.correo, rol: user.rol })).toString('base64');
-    const signature = crypto.createHmac('sha256', 'mi_clave_secreta_super_segura').update(tokenPayload).digest('base64');
+    const signature = crypto.createHmac('sha256', '6546546546456546543654643').update(tokenPayload).digest('base64');
     const token = `${tokenPayload}.${signature}`;
 
     const { contrasena_hash, ...userWithoutPassword } = user;

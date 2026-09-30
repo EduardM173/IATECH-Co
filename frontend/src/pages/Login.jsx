@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { login as loginRequest, ApiError } from '../lib/api'
 import { getAreaRoute } from '../lib/areas'
 

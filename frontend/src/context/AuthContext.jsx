@@ -1,7 +1,7 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { AuthContext } from './auth-context'
 
 const STORAGE_KEY = 'iatech.session'
-const AuthContext = createContext(null)
 
 function readStoredSession() {
   try {
@@ -34,10 +34,4 @@ export function AuthProvider({ children }) {
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider')
-  return ctx
 }

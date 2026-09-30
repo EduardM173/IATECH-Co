@@ -22,3 +22,19 @@ export async function login(correo, contrasena) {
 
   return data
 }
+
+export async function listActivos(area, token, search = '', page = 1, signal) {
+  const apiArea = area === 'big-data' ? 'bigdata' : area
+  const params = new URLSearchParams({ page: String(page), pageSize: '20' })
+  if (search.trim()) params.set('q', search.trim())
+
+  const response = await fetch(`${API_URL}/activos/${apiArea}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new ApiError(data?.message ?? 'No se pudieron cargar los activos', response.status)
+  }
+  return data
+}

@@ -1,103 +1,98 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import * as crypto from 'crypto';
+import { signSession } from './session-token';
+import { SessionUser } from './session.guard';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  // Utilidad nativa de Node para hashear contraseñas (sin usar librerias externas como bcrypt)
-  private hashPassword(password: string): string {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.scryptSync(password, salt, 32).toString('hex');
-    return `${salt}:${hash}`;
-  }
-
-  // Utilidad para verificar la contraseña
-  private verifyPassword(password: string, storedHash: string): boolean {
-    const parts = storedHash.split(':');
-    if (parts.length !== 2) return false;
-    
-    const [salt, key] = parts;
-    const hashBuffer = crypto.scryptSync(password, salt, 32);
-    const keyBuffer = Buffer.from(key, 'hex');
-    
-    if (hashBuffer.length !== keyBuffer.length) return false;
-    return crypto.timingSafeEqual(hashBuffer, keyBuffer);
-  }
-
-  async register(registerDto: RegisterDto) {
-    const { nombre, correo, contrasena, id_categoria, rol } = registerDto;
-
-    // 1. Validar que el usuario no exista
-    const existingUser = await this.prisma.usuario.findUnique({
+  async register(registerDto: RegisterDto, requester: SessionUser) {
+    const { nombre, correo, contrasena, id_categoria } = registerDto;
+    if (requester.rol !== 'ADMIN' || requester.id_categoria !== id_categoria) {
+      throw new ForbiddenException(
+        'Solo un administrador del área puede registrar usuarios',
+      );
+    }
+    const existingUser = await this.prisma.client.usuario.findUnique({
       where: { correo },
     });
-
     if (existingUser) {
       throw new BadRequestException('El correo ya está registrado');
     }
 
-    // 2. Hashear contraseña
-    const contrasena_hash = this.hashPassword(contrasena);
+    const categoria = await this.prisma.client.categoria.findUnique({
+      where: { id_categoria },
+    });
+    if (!categoria) {
+      throw new BadRequestException('La categoría no existe');
+    }
 
-    // 3. Crear el usuario en BD
-    const user = await this.prisma.usuario.create({
+    const salt = randomBytes(16).toString('hex');
+    const contrasena_hash = `${salt}:${scryptSync(contrasena, salt, 32).toString('hex')}`;
+    const user = await this.prisma.client.usuario.create({
       data: {
         nombre,
         correo,
         contrasena_hash,
         id_categoria,
-        rol: rol || 'USUARIO',
+        rol: 'USUARIO',
         estado: 'ACTIVO',
+      },
+      select: {
+        id_usuario: true,
+        nombre: true,
+        correo: true,
+        id_categoria: true,
+        rol: true,
+        estado: true,
+        fecha_creacion: true,
       },
     });
 
-    // 4. Retornar el usuario sin la contraseña
-    const { contrasena_hash: _, ...userWithoutPassword } = user;
-    return {
-      message: 'Usuario registrado exitosamente',
-      user: userWithoutPassword,
-    };
+    return { message: 'Usuario registrado exitosamente', user };
   }
 
   async login(loginDto: LoginDto) {
     const { correo, contrasena } = loginDto;
-
-    const user = await this.prisma.usuario.findUnique({
+    const user = await this.prisma.client.usuario.findUnique({
       where: { correo },
       include: { categoria: true },
     });
-
-    if (!user) {
+    if (!user || user.estado !== 'ACTIVO') {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // 2. Verificar estado activo
-    if (user.estado !== 'ACTIVO') {
-      throw new UnauthorizedException('El usuario está inactivo');
+    const [salt, key] = user.contrasena_hash.split(':');
+    if (!salt || !key || !/^[a-f0-9]{64}$/i.test(key)) {
+      throw new UnauthorizedException('Credenciales inválidas');
     }
-
-    // 3. Verificar contraseña
-    const isValid = this.verifyPassword(contrasena, user.contrasena_hash);
-    if (!isValid) {
+    const expected = Buffer.from(key, 'hex');
+    const actual = scryptSync(contrasena, salt, expected.length);
+    if (!timingSafeEqual(actual, expected)) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // 4. Generar un token básico nativo (Para hacerlo sin librerias externas como @nestjs/jwt)
-    // En producción se recomienda usar JWT real.
-    const tokenPayload = Buffer.from(JSON.stringify({ id: user.id_usuario, correo: user.correo, rol: user.rol })).toString('base64');
-    const signature = crypto.createHmac('sha256', '6546546546456546543654643').update(tokenPayload).digest('base64');
-    const token = `${tokenPayload}.${signature}`;
-
-    const { contrasena_hash, ...userWithoutPassword } = user;
-
-    return {
-      message: 'Login exitoso',
-      user: userWithoutPassword,
-      token,
+    const token = signSession(user.id_usuario);
+    const safeUser = {
+      id_usuario: user.id_usuario,
+      nombre: user.nombre,
+      correo: user.correo,
+      id_categoria: user.id_categoria,
+      rol: user.rol,
+      estado: user.estado,
+      fecha_creacion: user.fecha_creacion,
+      categoria: user.categoria,
     };
+    return { message: 'Login exitoso', user: safeUser, token };
   }
 }

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { useAuth } from './context/AuthContext'
+import { useAuth } from './context/useAuth'
 import AreaDashboard from './pages/AreaDashboard'
 import Login from './pages/Login'
 import { getAreaRoute } from './lib/areas'

@@ -23,9 +23,12 @@ const AREAS = [
   "BIG DATA ANALITICAS",
 ];
 
-const PASSWORD_TEMPORAL = "Admin123!"; // cambiar en el primer login
+const PASSWORD_TEMPORAL = process.env.SEED_ADMIN_PASSWORD;
 
 async function main() {
+  if (!PASSWORD_TEMPORAL || PASSWORD_TEMPORAL.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD debe tener al menos 12 caracteres");
+  }
   for (const nombre of AREAS) {
     const categoria = await prisma.categoria.upsert({
       where: { nombre_categoria: nombre },

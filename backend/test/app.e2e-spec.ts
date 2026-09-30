@@ -39,6 +39,7 @@ describe('AppController (e2e)', () => {
   });
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -91,11 +92,30 @@ describe('AppController (e2e)', () => {
     prisma.$transaction.mockResolvedValue([[], 0]);
 
     await request(app.getHttpServer())
-      .get('/activos/hardware')
+      .get('/activos/hardware?page=1&pageSize=20')
       .set('Authorization', `Bearer ${signSession(1)}`)
       .expect(200, {
         data: [],
         meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
       });
+    expect(prisma.activo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 0, take: 20 }) as object,
+    );
+  });
+
+  it('rechaza un tamaño de página inválido', async () => {
+    const prisma = getPrismaMock();
+    prisma.usuario.findUnique.mockResolvedValue({
+      id_usuario: 1,
+      id_categoria: 1,
+      rol: 'USUARIO',
+      estado: 'ACTIVO',
+      categoria: { nombre_categoria: 'HARDWARE' },
+    });
+    await request(app.getHttpServer())
+      .get('/activos/hardware?pageSize=abc')
+      .set('Authorization', `Bearer ${signSession(1)}`)
+      .expect(400);
+    expect(prisma.activo.findMany).not.toHaveBeenCalled();
   });
 });

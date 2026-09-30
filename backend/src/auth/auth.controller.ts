@@ -7,6 +7,7 @@ import {
   Inject,
   Req,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -21,7 +22,14 @@ export class AuthController {
   @Post('register')
   @UseGuards(SessionGuard)
   async register(
-    @Body() registerDto: RegisterDto,
+    @Body(
+      new ValidationPipe({
+        expectedType: RegisterDto,
+        transform: true,
+        whitelist: true,
+      }),
+    )
+    registerDto: RegisterDto,
     @Req() request: AuthenticatedRequest,
   ) {
     return this.authService.register(registerDto, request.sessionUser);
@@ -29,7 +37,16 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
+  async login(
+    @Body(
+      new ValidationPipe({
+        expectedType: LoginDto,
+        transform: true,
+        whitelist: true,
+      }),
+    )
+    loginDto: LoginDto,
+  ) {
     return this.authService.login(loginDto);
   }
 }

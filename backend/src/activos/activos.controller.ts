@@ -7,6 +7,7 @@ import {
   Query,
   Req,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -103,7 +104,14 @@ export class ActivosController {
   @ApiResponse({ status: 404, description: 'Area invalida' })
   listar(
     @Param('area', ParseAreaSlugPipe) area: AreaSlug,
-    @Query() query: ListActivosQueryDto,
+    @Query(
+      new ValidationPipe({
+        expectedType: ListActivosQueryDto,
+        transform: true,
+        whitelist: true,
+      }),
+    )
+    query: ListActivosQueryDto,
     @Req() req: Request,
   ) {
     return this.activosService.findAll(area, query, req.query);

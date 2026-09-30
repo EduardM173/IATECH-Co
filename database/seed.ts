@@ -3,7 +3,15 @@
 // Ejecutar con: pnpm run db:seed  (o node --experimental-strip-types seed.ts)
 
 import { prisma } from "./client";
-import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+
+// Mismo esquema de hash que backend/src/auth/auth.service.ts (scrypt nativo,
+// formato "salt:hash"). Si cambia uno, debe cambiar el otro.
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 32).toString("hex");
+  return `${salt}:${hash}`;
+}
 
 const AREAS = [
   "HARDWARE",
@@ -26,7 +34,7 @@ async function main() {
     });
 
     const correo = `admin.${nombre.toLowerCase().replace(/\s+/g, "_")}@iatech.com`;
-    const contrasena_hash = await bcrypt.hash(PASSWORD_TEMPORAL, 10);
+    const contrasena_hash = hashPassword(PASSWORD_TEMPORAL);
 
     await prisma.usuario.upsert({
       where: { correo },

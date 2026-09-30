@@ -11,10 +11,14 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { signSession } from './session-token';
 import { SessionUser } from './session.guard';
+import { SeguridadService } from '../seguridad/seguridad.service';
 
 @Injectable()
 export class AuthService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(SeguridadService) private readonly seguridad: SeguridadService,
+  ) {}
 
   async register(registerDto: RegisterDto, requester: SessionUser) {
     const { nombre, correo, contrasena, id_categoria } = registerDto;
@@ -62,27 +66,31 @@ export class AuthService {
     return { message: 'Usuario registrado exitosamente', user };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, ip = 'desconocida') {
     const { correo, contrasena } = loginDto;
     const user = await this.prisma.client.usuario.findUnique({
       where: { correo },
       include: { categoria: true },
     });
     if (!user || user.estado !== 'ACTIVO') {
+      await this.seguridad.registrar(correo, ip, 'FALLIDO');
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const [salt, key] = user.contrasena_hash.split(':');
     if (!salt || !key || !/^[a-f0-9]{64}$/i.test(key)) {
+      await this.seguridad.registrar(correo, ip, 'FALLIDO');
       throw new UnauthorizedException('Credenciales inválidas');
     }
     const expected = Buffer.from(key, 'hex');
     const actual = scryptSync(contrasena, salt, expected.length);
     if (!timingSafeEqual(actual, expected)) {
+      await this.seguridad.registrar(correo, ip, 'FALLIDO');
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const token = signSession(user.id_usuario);
+    await this.seguridad.registrar(correo, ip, 'EXITOSO');
     const safeUser = {
       id_usuario: user.id_usuario,
       nombre: user.nombre,

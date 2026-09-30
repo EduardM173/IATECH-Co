@@ -3,6 +3,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { ApiError, listActivos } from '../lib/api'
 import { getAreaRoute } from '../lib/areas'
+import AreaHeader from '../components/AreaHeader'
 
 const AREA_LABELS = {
   hardware: 'Hardware', software: 'Software', redes: 'Redes', seguridad: 'Seguridad',
@@ -51,16 +52,7 @@ function AreaDashboard() {
   const label = AREA_LABELS[area] ?? area
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-8 py-5">
-        <div>
-          <h1 className="text-xl font-bold">IATECH Co. · {label}</h1>
-          <p className="text-sm text-slate-500">Control de activos por área</p>
-        </div>
-        <div className="flex items-center gap-4 text-sm">
-          <span>{user?.nombre}</span>
-          <button type="button" onClick={logout} className="rounded-lg border border-slate-300 px-3 py-2 hover:bg-slate-100">Cerrar sesión</button>
-        </div>
-      </header>
+      <AreaHeader label={label} />
 
       <main className="mx-auto max-w-7xl p-6 md:p-8">
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

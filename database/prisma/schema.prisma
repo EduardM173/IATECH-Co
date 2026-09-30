@@ -139,3 +139,16 @@ model Usuario {
 
   @@map("usuario")
 }
+
+// Registro de accesos: nunca almacena contraseñas ni tokens.
+model EventoAcceso {
+  id        Int      @id @default(autoincrement())
+  correo    String   @db.VarChar(254)
+  ip        String   @db.VarChar(45)
+  resultado String   @db.VarChar(10)
+  fecha     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([fecha, id])
+  @@index([resultado, fecha, correo])
+  @@map("evento_acceso")
+}

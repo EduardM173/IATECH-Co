@@ -46,7 +46,8 @@ export class AuthController {
       }),
     )
     loginDto: LoginDto,
+    @Req() request: AuthenticatedRequest,
   ) {
-    return this.authService.login(loginDto);
+    return this.authService.login(loginDto, request.ip ?? 'desconocida');
   }
 }

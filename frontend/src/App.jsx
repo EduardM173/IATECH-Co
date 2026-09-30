@@ -3,6 +3,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { useAuth } from './context/useAuth'
 import AreaDashboard from './pages/AreaDashboard'
 import Login from './pages/Login'
+import SecurityActivity from './pages/SecurityActivity'
 import { getAreaRoute } from './lib/areas'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard/:area" element={<AreaDashboard />} />
+        <Route path="/dashboard/seguridad/actividad" element={<SecurityActivity />} />
       </Route>
 
       <Route

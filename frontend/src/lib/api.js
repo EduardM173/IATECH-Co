@@ -38,3 +38,15 @@ export async function listActivos(area, token, search = '', page = 1, signal) {
   }
   return data
 }
+
+export async function listSecurityActivity(token, filters, signal) {
+  const params = new URLSearchParams({ page: String(filters.page), pageSize: String(filters.pageSize), periodo: filters.periodo })
+  if (filters.q.trim()) params.set('q', filters.q.trim())
+  if (filters.resultado) params.set('resultado', filters.resultado)
+  const response = await fetch(`${API_URL}/seguridad/actividad?${params}`, {
+    headers: { Authorization: `Bearer ${token}` }, signal,
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) throw new ApiError(data?.message ?? 'No se pudo cargar la actividad de seguridad', response.status)
+  return data
+}

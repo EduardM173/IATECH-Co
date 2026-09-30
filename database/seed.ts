@@ -2,8 +2,11 @@
 // Crea las 7 categorias y un usuario ADMIN por cada area.
 // Ejecutar con: pnpm run db:seed  (o node --experimental-strip-types seed.ts)
 
-import { prisma } from "./client";
+import * as dotenv from "dotenv";
+import path from "path";
 import * as crypto from "crypto";
+
+let prisma: (typeof import("./client"))["prisma"] | undefined;
 
 // Mismo esquema de hash que backend/src/auth/auth.service.ts (scrypt nativo,
 // formato "salt:hash"). Si cambia uno, debe cambiar el otro.
@@ -22,8 +25,6 @@ const AREAS = [
   "CLOUD",
   "BIG DATA ANALITICAS",
 ];
-
-const PASSWORD_TEMPORAL = process.env.SEED_ADMIN_PASSWORD;
 
 // Datos iniciales de demostración. Se guardan en PostgreSQL para que el
 // frontend los consuma desde la API como cualquier activo registrado.
@@ -61,7 +62,13 @@ const AREA_DETAIL_RELATION = {
 } as const;
 
 async function main() {
-  if (!PASSWORD_TEMPORAL || PASSWORD_TEMPORAL.length < 12) {
+  // El .env local es opcional. En Render se usan las variables seguras del
+  // panel y dotenv simplemente continúa cuando el archivo no existe.
+  dotenv.config({ path: path.join(process.cwd(), ".env") });
+  ({ prisma } = await import("./client"));
+  const passwordTemporal = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!passwordTemporal || passwordTemporal.length < 12) {
     throw new Error("SEED_ADMIN_PASSWORD debe tener al menos 12 caracteres");
   }
   for (const nombre of AREAS) {
@@ -72,7 +79,7 @@ async function main() {
     });
 
     const correo = `admin.${nombre.toLowerCase().replace(/\s+/g, "_")}@iatech.com`;
-    const contrasena_hash = hashPassword(PASSWORD_TEMPORAL);
+    const contrasena_hash = hashPassword(passwordTemporal);
 
     await prisma.usuario.upsert({
       where: { correo },
@@ -129,5 +136,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await prisma?.$disconnect();
   });

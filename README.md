@@ -28,7 +28,7 @@ Se necesita una instancia de PostgreSQL. Desde la raíz del repositorio:
 4. Ejecutar `pnpm --filter database db:generate`, `pnpm --filter database db:deploy` y `pnpm --filter database db:seed`.
 5. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`.
 
-El seed crea las siete categorías y un administrador por área. Los activos se consultan desde la API con una sesión válida; cada usuario solo puede ver los de su área. El registro de otros usuarios requiere la sesión de un administrador de esa área.
+El seed crea las siete categorías, un administrador por área y 20 activos iniciales de demostración distribuidos entre las áreas. Estos activos se insertan en PostgreSQL mediante `upsert`, por lo que ejecutar el seed nuevamente los actualiza sin duplicarlos. Los activos se consultan desde la API con una sesión válida; cada usuario solo puede ver los de su área. El registro de otros usuarios requiere la sesión de un administrador de esa área.
 
 ## Actividad de seguridad
 

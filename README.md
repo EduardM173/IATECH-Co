@@ -1,20 +1,20 @@
-# IATECH-Co
+# IATECH-Co .
 
 ## Versiones de tecnologías
 
 Versiones registradas para mantener la consistencia del proyecto:
 
-| Tecnología | Versión | Ubicación |
-| --- | --- | --- |
-| Node.js | 22.14.0 | Entorno de desarrollo |
-| pnpm | 11.25.0 | Gestor de paquetes usado para integrar el workspace |
-| React | 19.3.0 | `frontend` |
-| React DOM | 19.3.0 | `frontend` |
-| Vite | 8.3.1 | `frontend` |
-| NestJS | 11.2.6 | `backend` |
-| Express | 5.2.1 | Adaptador predeterminado de NestJS en `backend` |
-| Prisma ORM | 7.10.0 | `database` |
-| Prisma Client | 7.10.0 | `database` |
+| Tecnología    | Versión | Ubicación                                           |
+| ------------- | ------- | --------------------------------------------------- |
+| Node.js       | 22.14.0 | Entorno de desarrollo                               |
+| pnpm          | 11.25.0 | Gestor de paquetes usado para integrar el workspace |
+| React         | 19.3.0  | `frontend`                                          |
+| React DOM     | 19.3.0  | `frontend`                                          |
+| Vite          | 8.3.1   | `frontend`                                          |
+| NestJS        | 11.2.6  | `backend`                                           |
+| Express       | 5.2.1   | Adaptador predeterminado de NestJS en `backend`     |
+| Prisma ORM    | 7.10.0  | `database`                                          |
+| Prisma Client | 7.10.0  | `database`                                          |
 
 Las versiones instaladas del workspace integrado están fijadas en el `pnpm-lock.yaml` de la raíz.
 

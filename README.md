@@ -25,8 +25,13 @@ Se necesita una instancia de PostgreSQL. Desde la raíz del repositorio:
 1. Ejecutar `pnpm install`.
 2. Copiar `database/.env.example` a `database/.env` y definir `DATABASE_URL` y una contraseña propia en `SEED_ADMIN_PASSWORD` (mínimo 12 caracteres).
 3. Copiar `backend/.env.example` a `backend/.env` y definir el mismo `DATABASE_URL` y un `AUTH_SECRET` aleatorio (mínimo 32 caracteres). Ajustar `CORS_ORIGIN` si el frontend usa otra dirección.
-4. Ejecutar `pnpm --filter database db:generate`, `pnpm --filter database db:deploy` y `pnpm --filter database db:seed`.
-5. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`.
+4. Copiar `frontend/.env.example` a `frontend/.env` y definir `VITE_API_URL` con la URL del backend.
+5. Ejecutar `pnpm --filter database db:generate`, `pnpm --filter database db:deploy` y `pnpm --filter database db:seed`.
+6. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`.
+
+### Variables para despliegue
+
+Los archivos `.env.example` son plantillas seguras para el equipo: no contienen secretos ni deben reemplazarse con valores reales en Git. En el despliegue actual, Render almacena `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD` y `CORS_ORIGIN`; Vercel almacena `VITE_API_URL` con la URL pública del backend de Render. Para desarrollo local, se usan las direcciones `localhost` incluidas en los ejemplos.
 
 El seed crea las siete categorías, un administrador por área y 20 activos iniciales de demostración distribuidos entre las áreas. Estos activos se insertan en PostgreSQL mediante `upsert`, por lo que ejecutar el seed nuevamente los actualiza sin duplicarlos. Los activos se consultan desde la API con una sesión válida; cada usuario solo puede ver los de su área. El registro de otros usuarios requiere la sesión de un administrador de esa área.
 

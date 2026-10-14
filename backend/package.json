@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:phase2": "tsx test/phase2.integration.ts"
+    "test:phase2": "tsx test/phase2.integration.ts",
+    "test:reports": "tsx test/reports.integration.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -31,6 +32,7 @@
     "database": "workspace:*",
     "dotenv": "^16.4.5",
     "exceljs": "4.4.0",
+    "jszip": "3.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

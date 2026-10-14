@@ -172,6 +172,7 @@ async function main() {
     },
     software: {
       nombre_herramienta: 'Prueba ' + runId,
+      estado_funcionamiento: 'Activa',
       categoria_dev: 'IDE',
       version_aprobada: '2026.10',
       tipo_licencia: 'Open Source',
@@ -598,6 +599,209 @@ async function main() {
       });
       check(Boolean(cat), 'Se conserva configuración pendiente ' + area);
     }
+    for (const [area, session] of Object.entries(sessions)) {
+      const cfg = contract[area];
+      console.log('Importación Excel: ' + area);
+      const editable = cfg.fields.filter(
+        (f) => f[0] !== cfg.id && f[1] !== 'timestamp',
+      );
+      const supplied = editable.filter((f) =>
+        Object.hasOwn(records[area], f[0]),
+      );
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Datos');
+      sheet.addRow([cfg.id, ...supplied.map((f) => f[0])]);
+      sheet.addRow([
+        999999,
+        ...supplied.map((f) =>
+          f[1] === 'date' && records[area][f[0]]
+            ? new Date(String(records[area][f[0]]))
+            : (records[area][f[0]] as ExcelJS.CellValue),
+        ),
+      ]);
+      const bytes = Buffer.from(await workbook.xlsx.writeBuffer());
+      const origin = 'http://' + area + '.localhost:5173';
+      const count = async () => {
+        const rows = await prisma.$queryRaw<{ total: bigint }[]>(
+          Prisma.sql`SELECT COUNT(*) AS total FROM ${Prisma.raw('"' + area + '"."' + cfg.table + '"')}`,
+        );
+        return Number(rows[0].total);
+      };
+      const before = await count();
+      const preview = await request(server)
+        .post('/inventarios/' + area + '/importar/vista-previa')
+        .set('Origin', origin)
+        .set('Cookie', session.cookie)
+        .set('X-IATECH-CSRF', '1')
+        .attach('file', bytes, 'datos.xlsx')
+        .expect(201);
+      check(
+        readBody(preview).canImport === true && readBody(preview).total === 1,
+        'Vista previa válida de ' + area,
+      );
+      check((await count()) === before, 'La vista previa no guarda registros');
+      await request(server)
+        .post('/inventarios/' + area + '/importar/confirmar')
+        .set('Origin', origin)
+        .set('Cookie', session.cookie)
+        .attach('file', bytes, 'datos.xlsx')
+        .expect(403);
+      const imported = await request(server)
+        .post('/inventarios/' + area + '/importar/confirmar')
+        .set('Origin', origin)
+        .set('Cookie', session.cookie)
+        .set('X-IATECH-CSRF', '1')
+        .attach('file', bytes, 'datos.xlsx')
+        .expect(201);
+      check(
+        readBody(imported).imported === 1 && (await count()) === before + 1,
+        'Importación persistida de ' + area,
+      );
+      const enumField = supplied.find((f) => f[4]?.length)!;
+      sheet.addRow([
+        1,
+        ...supplied.map((f) => records[area][f[0]] as ExcelJS.CellValue),
+      ]);
+      sheet.getRow(3).getCell(supplied.indexOf(enumField) + 2).value =
+        'NO_APROBADO';
+      const invalidBytes = Buffer.from(await workbook.xlsx.writeBuffer());
+      const invalid = await request(server)
+        .post('/inventarios/' + area + '/importar/vista-previa')
+        .set('Origin', origin)
+        .set('Authorization', 'Bearer ' + session.token)
+        .attach('file', invalidBytes, 'datos.xlsx')
+        .expect(201);
+      check(
+        readBody(invalid).canImport === false &&
+          readBody(invalid).errorCount === 1,
+        'Error identificado por fila en ' + area,
+      );
+      await request(server)
+        .post('/inventarios/' + area + '/importar/confirmar')
+        .set('Origin', origin)
+        .set('Authorization', 'Bearer ' + session.token)
+        .attach('file', invalidBytes, 'datos.xlsx')
+        .expect(400);
+      check(
+        (await count()) === before + 1,
+        'Archivo inválido no inserta parcialmente',
+      );
+      const other = Object.keys(sessions).find((name) => name !== area)!;
+      await request(server)
+        .post('/inventarios/' + other + '/importar/confirmar')
+        .set('Origin', origin)
+        .set('Authorization', 'Bearer ' + session.token)
+        .attach('file', bytes, 'datos.xlsx')
+        .expect(403);
+      checks++;
+      const templateBytes = await request(server)
+        .get('/inventarios/' + area + '/importar/plantilla')
+        .set('Origin', origin)
+        .set('Authorization', 'Bearer ' + session.token)
+        .buffer(true)
+        .parse((res, cb) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          res.on('end', () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      const template = new ExcelJS.Workbook();
+      const templateBuffer: unknown = templateBytes.body;
+      assert.ok(Buffer.isBuffer(templateBuffer));
+      await template.xlsx.load(
+        templateBuffer as unknown as Parameters<typeof template.xlsx.load>[0],
+      );
+      check(
+        template.getWorksheet('Datos')?.rowCount === 1,
+        'Plantilla vacía sin datos existentes',
+      );
+      assert.deepEqual(
+        (
+          template.getWorksheet('Datos')!.getRow(1)
+            .values as ExcelJS.CellValue[]
+        ).slice(1),
+        editable.map((f) => f[0]),
+      );
+      sheet.getRow(1).getCell(1).value = 'tenant_id';
+      await request(server)
+        .post('/inventarios/' + area + '/importar/vista-previa')
+        .set('Origin', origin)
+        .set('Authorization', 'Bearer ' + session.token)
+        .attach(
+          'file',
+          Buffer.from(await workbook.xlsx.writeBuffer()),
+          'datos.xlsx',
+        )
+        .expect(400);
+      checks++;
+    }
+    const malformed = Buffer.from('not an excel file');
+    const badWorkbook = new ExcelJS.Workbook();
+    const badSheet = badWorkbook.addWorksheet('Datos');
+    badSheet.addRow(['nombre', 'fecha_ultima_revision']);
+    badSheet.addRow([{ formula: '1+1', result: 2 }, '2026-02-30']);
+    const badFile = Buffer.from(await badWorkbook.xlsx.writeBuffer());
+    const badPreview = await request(server)
+      .post('/inventarios/seguridad/importar/vista-previa')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach('file', badFile, 'datos.xlsx')
+      .expect(201);
+    check(
+      readBody(badPreview).errorCount === 2,
+      'Rechaza fórmulas y fechas inexistentes',
+    );
+    await request(server)
+      .post('/inventarios/seguridad/importar/confirmar')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach('file', badFile, 'datos.xlsx')
+      .expect(400);
+    checks++;
+    badSheet.getRow(2).getCell(1).value = 'Registro de prueba';
+    badSheet.getRow(2).getCell(2).value = null;
+    for (let i = 0; i < 1000; i++) badSheet.addRow(['Registro de prueba']);
+    await request(server)
+      .post('/inventarios/seguridad/importar/vista-previa')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach(
+        'file',
+        Buffer.from(await badWorkbook.xlsx.writeBuffer()),
+        'datos.xlsx',
+      )
+      .expect(400);
+    checks++;
+    await request(server)
+      .post('/inventarios/seguridad/importar/vista-previa')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach('file', Buffer.alloc(5 * 1024 * 1024 + 1), 'datos.xlsx')
+      .expect(413);
+    checks++;
+    const testEmail = runId + '.seguridad@iatech.test';
+    await prisma.usuario.update({
+      where: { correo: testEmail },
+      data: { rol: 'USUARIO' },
+    });
+    await request(server)
+      .post('/inventarios/seguridad/importar/vista-previa')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach('file', badFile, 'datos.xlsx')
+      .expect(403);
+    await prisma.usuario.update({
+      where: { correo: testEmail },
+      data: { rol: 'ADMIN' },
+    });
+    checks++;
+    await request(server)
+      .post('/inventarios/seguridad/importar/vista-previa')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .attach('file', malformed, 'datos.xlsx')
+      .expect(400);
+    checks++;
     console.log(
       'Integración real: ' +
         checks +

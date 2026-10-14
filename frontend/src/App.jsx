@@ -6,6 +6,7 @@ import SecurityActivity from "./pages/SecurityActivity";
 import { getAreaRoute } from "./lib/areas";
 import { activityEnabled } from "./components/AreaHeader";
 import InventoryWorkspace from "./pages/InventoryWorkspace";
+import ReportsWorkspace from "./pages/ReportsWorkspace";
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
@@ -39,7 +40,7 @@ function App() {
         />
         <Route
           path="/dashboard/:area/reportes"
-          element={<InventoryWorkspace mode="reports" />}
+          element={<ReportsWorkspace />}
         />
         <Route
           path="/dashboard/:area/bi"

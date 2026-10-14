@@ -14,11 +14,15 @@ export async function apiRequest(
     credentials: "include",
     signal,
     headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined && !(body instanceof FormData)
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...(method !== "GET" ? { "X-IATECH-CSRF": "1" } : {}),
       ...(token ? { Authorization: "Bearer " + token } : {}),
     },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(body !== undefined
+      ? { body: body instanceof FormData ? body : JSON.stringify(body) }
+      : {}),
   });
   if (blob && response.ok) return response.blob();
   const data = await response.json().catch(() => null);
@@ -68,6 +72,26 @@ export const inventoryReport = (area, token, query, signal) =>
     method: "POST",
     body: query,
     signal,
+  });
+export function inventoryImport(area, token, file, confirm = false) {
+  const body = new FormData();
+  body.append("file", file);
+  return apiRequest(
+    "/inventarios/" +
+      normalizeArea(area) +
+      "/importar/" +
+      (confirm ? "confirmar" : "vista-previa"),
+    {
+      token,
+      method: "POST",
+      body,
+    },
+  );
+}
+export const inventoryImportTemplate = (area, token) =>
+  apiRequest("/inventarios/" + normalizeArea(area) + "/importar/plantilla", {
+    token,
+    blob: true,
   });
 export const inventoryExport = (area, token, query) =>
   apiRequest("/bi/" + normalizeArea(area) + "/exportar?" + queryString(query), {

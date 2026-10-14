@@ -1,6 +1,11 @@
 const input =
   "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-rose-500";
-export default function InventoryFilters({ fields, criteria, onChange }) {
+export default function InventoryFilters({
+  fields,
+  criteria,
+  onChange,
+  className = "",
+}) {
   function update(index, patch) {
     onChange({
       ...criteria,
@@ -11,7 +16,7 @@ export default function InventoryFilters({ fields, criteria, onChange }) {
     });
   }
   return (
-    <div className="mb-6 space-y-3">
+    <div className={"mb-6 space-y-3 " + className}>
       <div className="flex flex-wrap gap-3">
         <input
           aria-label="Buscar en el inventario"

@@ -108,7 +108,7 @@ En la revisión local se usó una instancia temporal aislada en el puerto 55434,
 
 ## Comprobaciones realizadas
 - Contrato PostgreSQL: 51 columnas aprobadas verificadas.
-- `pnpm --filter backend test:phase2`: 242 comprobaciones reales, incluidas matrices de aislamiento entre las cinco áreas, cookies/CSRF, reportes, agregaciones decimales, exportación, NULL, filtros, fechas, límite de 10.000 registros y roles.
+- `pnpm --filter backend test:phase2`: 288 comprobaciones reales, incluidas matrices de aislamiento entre las cinco áreas, cookies/CSRF, reportes, agregaciones decimales, exportación, NULL, filtros, fechas, límite de 10.000 registros, roles e importación Excel (plantillas, vistas previas, persistencia, errores sin inserciones parciales, límites, fórmulas y acceso de administradores).
 - `pnpm --filter database test:migration`: limpia inventario descartable y conserva íntegra una cuenta anterior (ID, categoría y hash).
 - Pruebas unitarias existentes: 10 pasaron.
 - Pruebas e2e existentes: 5 pasaron.
@@ -118,6 +118,20 @@ En la revisión local se usó una instancia temporal aislada en el puerto 55434,
 - .github/workflows/phase2.yml deja preparado el job con PostgreSQL para futuras PR. Todavía no se ejecutó en GitHub porque esta rama no se publicó; para bloquear merges deberá marcarse como comprobación obligatoria en las reglas del repositorio.
 
 Los comandos de integración exigen un host local 127.0.0.1 y una base cuyo nombre termine en _test. Crean fixtures y retiran únicamente los registros propios de su ejecución al terminar. La prueba de migración conserva su base temporal para inspección.
+
+## Importación Excel
+
+Disponible para administradores en Inventario → Importar Excel, en las cinco áreas con diccionario aprobado. Permite descargar una plantilla vacía con hoja Datos y una hoja de instrucciones, seleccionar un archivo, validar y confirmar su importación.
+
+- Admite `.xlsx` sin contraseña, hasta 5 MB, 1000 filas y 20 MB de contenido declarado descomprimido.
+- Los encabezados deben ser los nombres exactos de las columnas del área, sin duplicados ni columnas ajenas. Las columnas obligatorias sin valor predeterminado deben estar presentes.
+- Vista previa de los primeros 20 registros y hasta 100 errores identificados por fila/columna. No escribe en la base de datos.
+- Valida dominios, longitudes, fechas reales, IP y DECIMAL(10,2). Admite fechas Excel o YYYY-MM-DD; rechaza fórmulas y celdas especiales. Los campos textuales deben ser texto, incluso versiones numéricas.
+- ID y timestamps automáticos se ignoran si vienen en el archivo. Los campos DATE de Big Data no son automáticos: se importan como datos ordinarios.
+- Columnas opcionales omitidas conservan el default de PostgreSQL; celdas vacías se convierten en NULL solo si son permitidas. Un campo obligatorio incluido y vacío es un error.
+- Al confirmar, el servidor vuelve a validar el archivo y guarda todo en una transacción con el rol PostgreSQL del área. Si falla, no se inserta parcialmente.
+- Solo crea registros nuevos; no actualiza ni elimina los existentes. Importar el mismo archivo nuevamente creará registros adicionales.
+- No requiere migración, tablas nuevas, cambios de credenciales ni dependencias adicionales. No se publicó ni desplegó.
 
 ## Despliegue futuro y límites
 - No hay dominio propio confirmado. Los subdominios públicos y sus certificados/DNS deben configurarse posteriormente.

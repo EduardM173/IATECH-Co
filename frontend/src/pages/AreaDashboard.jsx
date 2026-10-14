@@ -54,7 +54,7 @@ function AreaDashboard() {
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <AreaHeader label={label} />
 
-      <main className="mx-auto max-w-7xl p-6 md:p-8">
+      <main id="main-content" className="mx-auto max-w-7xl p-6 md:p-8">
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-bold">Inventario de {label}</h2>
           <p className="mt-1 text-sm text-slate-500">{loading ? 'Cargando…' : `${total} activos registrados`}</p>

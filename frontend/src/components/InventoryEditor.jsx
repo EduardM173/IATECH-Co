@@ -1,7 +1,34 @@
 import { useState } from "react";
 import { saveInventory } from "../lib/api";
-const input =
-  "mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-rose-500 outline-none";
+const input = "inventory-editor-input";
+
+const fieldLabels = {
+  nombre: "Nombre",
+  nombre_activo: "Nombre del activo",
+  nombre_herramienta: "Nombre de la herramienta",
+  nombre_dispositivo: "Nombre del dispositivo",
+  categoria_recurso: "Categoría del recurso",
+  funcion_seguridad: "Función de seguridad",
+  responsable_owner: "Responsable / owner",
+  criticidad: "Criticidad",
+  estado_gestion: "Estado de gestión",
+  fecha_ultima_revision: "Fecha de última revisión",
+  resultado_revision: "Resultado de revisión",
+  tipo_activo: "Tipo de activo",
+  fuente_origen: "Fuente de origen",
+  clasificacion_sensibilidad: "Clasificación de sensibilidad",
+  ubicacion_repositorio: "Ubicación del repositorio",
+  direccion_ip: "Dirección IP",
+  area_pertenencia: "Área de pertenencia",
+  protocolo_enrutamiento: "Protocolo de enrutamiento",
+};
+
+function readableField(name) {
+  if (fieldLabels[name]) return fieldLabels[name];
+  const words = name.replaceAll("_", " ");
+  return words.charAt(0).toLocaleUpperCase("es") + words.slice(1);
+}
+
 export default function InventoryEditor({
   config,
   area,
@@ -11,6 +38,47 @@ export default function InventoryEditor({
   onSaved,
 }) {
   const editable = config.fields.filter((f) => !f.automatic);
+  const securityGroups = [
+    {
+      title: "Información general",
+      names: ["nombre", "categoria_recurso", "funcion_seguridad", "responsable"],
+    },
+    {
+      title: "Gestión del recurso",
+      names: ["criticidad", "estado_gestion"],
+    },
+    {
+      title: "Última revisión",
+      names: ["fecha_ultima_revision", "resultado_revision"],
+    },
+  ];
+  const usedSecurityFields = new Set(securityGroups.flatMap((group) => group.names));
+  const formSections =
+    area === "seguridad"
+      ? [
+          ...securityGroups.map((group) => ({
+            title: group.title,
+            fields: editable.filter((field) => group.names.includes(field.name)),
+          })),
+          {
+            title: "Otros datos del recurso",
+            fields: editable.filter((field) => !usedSecurityFields.has(field.name)),
+          },
+        ].filter((section) => section.fields.length)
+      : [
+          {
+            title: "Información del recurso",
+            fields: editable.filter(
+              (field) => !["date", "timestamp", "decimal"].includes(field.type),
+            ),
+          },
+          {
+            title: "Fechas y valores",
+            fields: editable.filter((field) =>
+              ["date", "timestamp", "decimal"].includes(field.type),
+            ),
+          },
+        ].filter((section) => section.fields.length);
   const [values, setValues] = useState(() =>
     Object.fromEntries(
       editable.map((field) => [
@@ -23,6 +91,14 @@ export default function InventoryEditor({
   );
   const [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
+  const errorField = error
+    ? editable.find((field) => {
+        const escaped = field.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`(?:^|[^\\w])${escaped}(?:$|[^\\w])`, "i").test(
+          error,
+        );
+      })
+    : null;
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
@@ -38,106 +114,127 @@ export default function InventoryEditor({
   }
   return (
     <section
-      aria-label={record ? "Editar registro" : "Nuevo registro"}
-      className="mb-6 rounded-xl border border-rose-200 bg-white p-6 shadow-sm"
+      className="inventory-form-card"
     >
-      <div className="mb-5 flex justify-between gap-4">
-        <h3 className="font-semibold">
-          {record ? "Editar registro " + record[config.id] : "Nuevo registro"}
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-sm text-slate-500"
-        >
-          Cerrar
-        </button>
-      </div>
       <form onSubmit={submit}>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {editable.map((field) => {
-            const value = values[field.name],
-              isNull = value === null;
-            return (
-              <label
-                key={field.name}
-                className="text-sm font-medium text-slate-600"
-              >
-                {field.name}
-                {!field.nullable && <span className="text-rose-600"> *</span>}
-                {field.values ? (
-                  <select
-                    disabled={isNull}
-                    required={!field.nullable}
-                    className={input}
-                    value={value ?? ""}
-                    onChange={(e) =>
-                      setValues({ ...values, [field.name]: e.target.value })
-                    }
-                  >
-                    <option value="">Seleccionar</option>
-                    {field.values.map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    disabled={isNull}
-                    required={!field.nullable}
-                    type={field.type === "date" ? "date" : "text"}
-                    maxLength={field.length}
-                    inputMode={field.type === "decimal" ? "decimal" : undefined}
-                    placeholder={field.type === "decimal" ? "0.00" : undefined}
-                    className={input}
-                    value={value ?? ""}
-                    onChange={(e) =>
-                      setValues({ ...values, [field.name]: e.target.value })
-                    }
-                  />
-                )}
-                {field.nullable && (
-                  <span className="mt-2 flex items-center gap-2 text-xs font-normal">
-                    <input
-                      type="checkbox"
-                      checked={isNull}
-                      onChange={(e) =>
-                        setValues({
-                          ...values,
-                          [field.name]: e.target.checked ? null : "",
-                        })
+        {formSections.map((section) => (
+          <fieldset className="inventory-form-section" key={section.title}>
+            <legend>{section.title}</legend>
+            {section.title === "Información general" && area === "seguridad" && (
+              <p className="inventory-form-section-note">
+                Identifica el recurso, su función y quién es responsable.
+              </p>
+            )}
+            <div className="inventory-form-grid">
+              {section.fields.map((field) => {
+                const value = values[field.name],
+                  isNull = value === null;
+                return (
+                  <label key={field.name} className="inventory-form-field">
+                    <span className="inventory-form-label">
+                      {readableField(field.name)}
+                    </span>
+                    {!field.nullable && (
+                      <span className="inventory-required" aria-hidden="true">
+                        *
+                      </span>
+                    )}
+                    {field.values ? (
+                      <select
+                        disabled={isNull}
+                        required={!field.nullable}
+                        className={input}
+                        id={`${area}-${field.name}`}
+                      aria-invalid={errorField?.name === field.name || undefined}
+                      aria-describedby={
+                        errorField?.name === field.name
+                          ? `${area}-${field.name}-error`
+                          : undefined
                       }
-                    />
-                    Sin dato (NULL)
-                  </span>
-                )}
-              </label>
-            );
-          })}
-        </div>
-        <p className="mt-4 text-xs text-slate-500">
+                        value={value ?? ""}
+                        onChange={(e) =>
+                          setValues({ ...values, [field.name]: e.target.value })
+                        }
+                      >
+                        <option value="">Seleccionar</option>
+                        {field.values.map((v) => (
+                          <option key={v}>{v}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        disabled={isNull}
+                        required={!field.nullable}
+                        type={field.type === "date" ? "date" : "text"}
+                        maxLength={field.length}
+                        inputMode={
+                          field.type === "decimal" ? "decimal" : undefined
+                        }
+                        placeholder={
+                          field.type === "decimal" ? "0.00" : undefined
+                        }
+                        className={input}
+                        id={`${area}-${field.name}`}
+                        aria-invalid={errorField?.name === field.name || undefined}
+                        aria-describedby={
+                          errorField?.name === field.name
+                            ? `${area}-${field.name}-error`
+                            : undefined
+                        }
+                        value={value ?? ""}
+                        onChange={(e) =>
+                          setValues({ ...values, [field.name]: e.target.value })
+                        }
+                      />
+                    )}
+                    {field.nullable && (
+                      <span className="inventory-null-toggle">
+                        <input
+                          type="checkbox"
+                          aria-label={`Dejar ${readableField(field.name).toLocaleLowerCase("es")} sin dato (NULL)`}
+                          checked={isNull}
+                          onChange={(e) =>
+                            setValues({
+                              ...values,
+                              [field.name]: e.target.checked ? null : "",
+                            })
+                          }
+                        />
+                        <span>Dejar sin dato</span>
+                        <span className="inventory-null-value">NULL</span>
+                      </span>
+                    )}
+                    {errorField?.name === field.name && (
+                      <span
+                        id={`${area}-${field.name}-error`}
+                        className="inventory-form-field-error"
+                      >
+                        {error}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+        <p className="inventory-form-note">
           El identificador y las fechas automáticas los gestiona la base de
           datos.
         </p>
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 rounded bg-rose-50 p-3 text-sm text-rose-700"
-          >
+        {error && !errorField && (
+          <p role="alert" className="inventory-message">
             {error}
           </p>
         )}
-        <div className="mt-5 flex gap-3">
+        <div className="inventory-form-actions">
           <button
             disabled={saving}
-            className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="inventory-button inventory-button-primary"
           >
             {saving ? "Guardando…" : "Guardar"}
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border px-4 py-2 text-sm"
-          >
+          <button type="button" onClick={onClose} className="inventory-button">
             Cancelar
           </button>
         </div>

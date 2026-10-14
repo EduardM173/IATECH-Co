@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ActivosModule } from './activos/activos.module';
+import { InventariosModule } from './inventarios/inventarios.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { ActivosModule } from './activos/activos.module';
     PrismaModule,
     AuthModule,
     ActivosModule,
+    InventariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

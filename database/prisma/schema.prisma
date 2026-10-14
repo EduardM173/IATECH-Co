@@ -9,6 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public", "core", "seguridad", "software", "bigdata", "calidad", "redes"]
   // La URL de conexion ya NO va aqui en Prisma 7.
   // Vive en prisma.config.ts (ver ese archivo).
 }
@@ -17,13 +18,14 @@ datasource db {
 // CATEGORIA - una fila por cada area de la empresa
 // ---------------------------------------------------------
 model Categoria {
-  id_categoria     Int       @id @default(autoincrement())
-  nombre_categoria String    @unique @db.VarChar(50)
+  id_categoria     Int    @id @default(autoincrement())
+  nombre_categoria String @unique @db.VarChar(50)
 
-  activos          Activo[]
-  usuarios         Usuario[]
+  activos  Activo[]
+  usuarios Usuario[]
 
   @@map("categoria")
+  @@schema("core")
 }
 
 // ---------------------------------------------------------
@@ -47,6 +49,7 @@ model Activo {
   bigdata   BigData?
 
   @@map("activo")
+  @@schema("public")
 }
 
 // ---------------------------------------------------------
@@ -61,6 +64,7 @@ model Hardware {
   marca        String? @db.VarChar(50)
 
   @@map("hardware")
+  @@schema("public")
 }
 
 model Software {
@@ -71,6 +75,7 @@ model Software {
   fecha_expiracion DateTime? @db.Date
 
   @@map("software")
+  @@schema("public")
 }
 
 model Redes {
@@ -81,6 +86,7 @@ model Redes {
   ancho_banda   String? @db.VarChar(30)
 
   @@map("redes")
+  @@schema("public")
 }
 
 model Seguridad {
@@ -91,6 +97,7 @@ model Seguridad {
   protocolo      String? @db.VarChar(50)
 
   @@map("seguridad")
+  @@schema("public")
 }
 
 model Calidad {
@@ -101,6 +108,7 @@ model Calidad {
   fecha_auditoria DateTime? @db.Date
 
   @@map("calidad")
+  @@schema("public")
 }
 
 model Cloud {
@@ -111,6 +119,7 @@ model Cloud {
   capacidad     String? @db.VarChar(30)
 
   @@map("cloud")
+  @@schema("public")
 }
 
 model BigData {
@@ -121,6 +130,7 @@ model BigData {
   volumen_datos String? @db.VarChar(30)
 
   @@map("big_data_analiticas")
+  @@schema("public")
 }
 
 // ---------------------------------------------------------
@@ -138,6 +148,7 @@ model Usuario {
   fecha_creacion  DateTime  @default(now())
 
   @@map("usuario")
+  @@schema("core")
 }
 
 // Registro de accesos: nunca almacena contraseñas ni tokens.
@@ -151,4 +162,86 @@ model EventoAcceso {
   @@index([fecha, id])
   @@index([resultado, fecha, correo])
   @@map("evento_acceso")
+  @@schema("core")
+}
+
+model RecursoSeguridad {
+  id_activo             Int       @id @default(autoincrement())
+  nombre                String?   @db.VarChar(150)
+  categoria_recurso     String?   @db.VarChar(50)
+  funcion_seguridad     String?   @db.VarChar(50)
+  responsable           String?   @db.VarChar(100)
+  criticidad            String?   @db.VarChar(10)
+  estado_gestion        String?   @db.VarChar(20)
+  fecha_ultima_revision DateTime? @db.Date
+  resultado_revision    String?   @db.VarChar(30)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamp(3)
+  fecha_modificacion    DateTime  @default(now()) @db.Timestamp(3)
+
+  @@map("recursos_seguridad")
+  @@schema("seguridad")
+}
+
+model HerramientaDesarrollo {
+  id_herramienta_dev         Int       @id @default(autoincrement())
+  nombre_herramienta         String    @db.VarChar(100)
+  categoria_dev              String    @db.VarChar(50)
+  estado_funcionamiento      String    @default("Activa") @db.VarChar(20)
+  version_aprobada           String    @db.VarChar(30)
+  fecha_ultima_actualizacion DateTime? @db.Date
+  tipo_licencia              String    @db.VarChar(50)
+  costo_total_usd            Decimal?  @default(0.00) @db.Decimal(10, 2)
+  fecha_adquisicion          DateTime  @db.Date
+  fecha_expiracion           DateTime? @db.Date
+
+  @@map("herramientas_desarrollo")
+  @@schema("software")
+}
+
+model ActivoDatos {
+  id_activo                  Int       @id @default(autoincrement())
+  nombre_activo              String?   @db.VarChar(150)
+  fecha_creacion             DateTime? @db.Date
+  fecha_modificacion         DateTime? @db.Date
+  tipo_activo                String?   @db.VarChar(30)
+  fuente_origen              String?   @db.VarChar(100)
+  clasificacion_sensibilidad String?   @db.VarChar(20)
+  responsable_owner          String?   @db.VarChar(100)
+  ubicacion_repositorio      String?   @db.VarChar(200)
+  estado                     String?   @db.VarChar(20)
+
+  @@map("activos_datos")
+  @@schema("bigdata")
+}
+
+model HerramientaCalidad {
+  id_herramienta        Int       @id @default(autoincrement())
+  nombre_herramienta    String?   @db.VarChar(150)
+  categoria_herramienta String?   @db.VarChar(50)
+  responsable           String?   @db.VarChar(100)
+  criticidad            String?   @db.VarChar(10)
+  estado_gestion        String?   @db.VarChar(20)
+  fecha_ultima_revision DateTime? @db.Date
+  resultado_revision    String?   @db.VarChar(30)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamp(3)
+  fecha_modificacion    DateTime  @default(now()) @db.Timestamp(3)
+
+  @@map("herramientas_calidad")
+  @@schema("calidad")
+}
+
+model DispositivoRed {
+  id_dispositivo         Int     @id @default(autoincrement())
+  nombre_dispositivo     String? @db.VarChar(100)
+  modelo                 String? @db.VarChar(100)
+  area_pertenencia       String? @db.VarChar(100)
+  direccion_ip           String? @db.VarChar(45)
+  red_pertenencia        String? @db.VarChar(100)
+  marca                  String? @db.VarChar(50)
+  protocolo_enrutamiento String? @db.VarChar(30)
+  tipo_dispositivo       String? @db.VarChar(30)
+  estado                 String? @db.VarChar(20)
+
+  @@map("dispositivos_red")
+  @@schema("redes")
 }

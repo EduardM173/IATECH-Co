@@ -8,7 +8,12 @@ import {
   Req,
   UseGuards,
   ValidationPipe,
+  Get,
+  Res,
+  ForbiddenException,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { requestTenant } from './tenant';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -47,7 +52,57 @@ export class AuthController {
     )
     loginDto: LoginDto,
     @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.authService.login(loginDto, request.ip ?? 'desconocida');
+    const tenant = requestTenant(request);
+    if (process.env.TENANT_REQUIRE_SUBDOMAIN === 'true' && !tenant)
+      throw new ForbiddenException(
+        'Selecciona el área de acceso antes de iniciar sesión',
+      );
+    const result = await this.authService.login(
+      loginDto,
+      request.ip ?? 'desconocida',
+      tenant,
+    );
+    response.cookie('iatech_session', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+    return result;
+  }
+
+  @Get('me')
+  @UseGuards(SessionGuard)
+  me(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const legacyToken = request.headers.authorization?.startsWith('Bearer ')
+      ? request.headers.authorization.slice(7)
+      : null;
+    if (legacyToken)
+      response.cookie('iatech_session', legacyToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 8 * 60 * 60 * 1000,
+      });
+    return { user: request.sessionUser };
+  }
+
+  @Post('logout')
+  @UseGuards(SessionGuard)
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('iatech_session', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    return { message: 'Sesión cerrada' };
   }
 }

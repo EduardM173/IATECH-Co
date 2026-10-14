@@ -11,6 +11,7 @@ import { AREA_CONFIG } from '../activos/areas.config';
 import { AreaSlug } from '../activos/types/area-slug.type';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifySession } from './session-token';
+import { assertTenantIdentity, originAllowed } from './tenant';
 
 export interface SessionUser {
   id_usuario: number;
@@ -30,15 +31,36 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authorization = request.headers.authorization;
+    const cookie = request.headers.cookie
+      ?.split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('iatech_session='));
     const token = authorization?.startsWith('Bearer ')
       ? authorization.slice(7)
-      : '';
+      : (cookie?.slice('iatech_session='.length) ?? '');
+    if (
+      !authorization &&
+      cookie &&
+      !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
+      (!originAllowed(request.headers.origin) ||
+        request.headers['x-iatech-csrf'] !== '1')
+    )
+      throw new ForbiddenException('Solicitud de sesión no autorizada');
     const userId = token ? verifySession(token) : null;
     if (!userId) throw new UnauthorizedException('Sesión inválida o vencida');
 
     const user = await this.prisma.client.usuario.findUnique({
       where: { id_usuario: userId },
-      include: { categoria: true },
+      select: {
+        id_usuario: true,
+        id_categoria: true,
+        nombre: true,
+        correo: true,
+        rol: true,
+        estado: true,
+        fecha_creacion: true,
+        categoria: true,
+      },
     });
     if (!user || user.estado !== 'ACTIVO') {
       throw new UnauthorizedException('Sesión inválida o vencida');
@@ -54,6 +76,7 @@ export class SessionGuard implements CanActivate {
     }
 
     request.sessionUser = user;
+    assertTenantIdentity(request, user.categoria.nombre_categoria);
     return true;
   }
 }

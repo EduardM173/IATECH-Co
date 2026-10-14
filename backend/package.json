@@ -17,10 +17,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:phase2": "tsx test/phase2.integration.ts"
   },
   "dependencies": {
-    "database": "workspace:*",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -28,7 +28,9 @@
     "@nestjs/swagger": "^11.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "database": "workspace:*",
     "dotenv": "^16.4.5",
+    "exceljs": "4.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

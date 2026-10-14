@@ -1,37 +1,57 @@
-import { useMemo, useState } from 'react'
-import { AuthContext } from './auth-context'
-
-const STORAGE_KEY = 'iatech.session'
-
-function readStoredSession() {
+import { useEffect, useMemo, useState } from "react";
+import { AuthContext } from "./auth-context";
+import { currentSession, closeSession } from "../lib/api";
+const STORAGE_KEY = "iatech.session";
+function stored() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
+    return JSON.parse(localStorage.getItem(STORAGE_KEY));
   } catch {
-    return null
+    return null;
   }
 }
-
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(readStoredSession)
-
+  const [session, setSession] = useState(stored);
+  const [loading, setLoading] = useState(() => Boolean(stored()?.user));
+  useEffect(() => {
+    if (!stored()?.user) return;
+    let active = true;
+    currentSession(stored()?.token)
+      .then(({ user }) => {
+        if (active) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+          setSession({ user });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          localStorage.removeItem(STORAGE_KEY);
+          setSession(null);
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const value = useMemo(
     () => ({
       user: session?.user ?? null,
       token: session?.token ?? null,
-      isAuthenticated: Boolean(session?.token),
-      login(user, token) {
-        const next = { user, token }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-        setSession(next)
+      isAuthenticated: Boolean(session?.user),
+      loading,
+      login(user) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+        setSession({ user });
       },
       logout() {
-        localStorage.removeItem(STORAGE_KEY)
-        setSession(null)
+        closeSession().catch(() => {});
+        localStorage.removeItem(STORAGE_KEY);
+        setSession(null);
       },
     }),
-    [session],
-  )
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    [session, loading],
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

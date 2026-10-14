@@ -1,5 +1,9 @@
 # IATECH-Co
 
+## Avance de fase 2 (rama local)
+
+La rama `feat/avance-inventarios-fase2` implementa inventarios por esquema, Reportes y BI. Consulta [la guía de fase 2](docs/fase2.md) para migraciones, permisos, subdominios, pruebas y límites. Este avance todavía no está publicado.
+
 ## Versiones de tecnologías
 
 Versiones registradas para mantener la consistencia del proyecto:
@@ -25,19 +29,20 @@ Se necesita una instancia de PostgreSQL. Desde la raíz del repositorio:
 1. Ejecutar `pnpm install`.
 2. Copiar `database/.env.example` a `database/.env` y definir `DATABASE_URL` y una contraseña propia en `SEED_ADMIN_PASSWORD` (mínimo 12 caracteres).
 3. Copiar `backend/.env.example` a `backend/.env` y definir el mismo `DATABASE_URL` y un `AUTH_SECRET` aleatorio (mínimo 32 caracteres). Ajustar `CORS_ORIGIN` si el frontend usa otra dirección.
-4. Copiar `frontend/.env.example` a `frontend/.env` y definir `VITE_API_URL` con la URL del backend.
+4. Copiar `frontend/.env.example` a `frontend/.env`. `VITE_API_URL=/api` utiliza el proxy local y permite las cookies de sesión.
 5. Ejecutar `pnpm --filter database db:generate`, `pnpm --filter database db:deploy` y `pnpm --filter database db:seed`.
-6. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`.
+6. Aprovisionar los roles con `database/security/schema-roles.sql` como administrador de PostgreSQL.
+7. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`. Entrar por el subdominio del área, por ejemplo `http://seguridad.localhost:5173/login`.
 
 ### Variables para despliegue
 
 Los archivos `.env.example` son plantillas seguras para el equipo: no contienen secretos ni deben reemplazarse con valores reales en Git. En el despliegue actual, Render almacena `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD` y `CORS_ORIGIN`; Vercel almacena `VITE_API_URL` con la URL pública del backend de Render. Para desarrollo local, se usan las direcciones `localhost` incluidas en los ejemplos.
 
-El seed crea las siete categorías, un administrador por área y 20 activos iniciales de demostración distribuidos entre las áreas. Estos activos se insertan en PostgreSQL mediante `upsert`, por lo que ejecutar el seed nuevamente los actualiza sin duplicarlos. Los activos se consultan desde la API con una sesión válida; cada usuario solo puede ver los de su área. El registro de otros usuarios requiere la sesión de un administrador de esa área.
+El seed crea las siete categorías y las cuentas administradoras que falten, sin reemplazar contraseñas. El inventario antiguo era de prueba y se descarta en la migración de fase 2; las nuevas tablas empiezan vacías. La migración se ha probado únicamente en una base aislada, no en producción. El registro de otros usuarios requiere la sesión de un administrador de esa área.
 
 ## Actividad de seguridad
 
-Los usuarios del área `SEGURIDAD` tienen la opción **Actividad de seguridad** junto al inventario, en `/dashboard/seguridad/actividad`. El backend también restringe `GET /seguridad/actividad` a esta área mediante una sesión válida.
+En fase 2 esta opción está oculta por defecto. Su código y el registro de accesos se conservan. Para habilitarla deben activarse `FEATURE_SECURITY_ACTIVITY` en backend y `VITE_FEATURE_SECURITY_ACTIVITY` en frontend. Mientras esté desactivada, la ruta frontend redirige al inventario y el endpoint devuelve 404.
 
 La sección registra los inicios de sesión exitosos y los fallos de credenciales enviados con un formato válido. Muestra correo, IP de conexión, fecha y resultado, sin almacenar contraseñas ni tokens. Incluye búsqueda por correo/IP, filtros de resultado y período, paginación y actualización manual. El historial comienza al aplicar la migración `20260930_security_activity`.
 

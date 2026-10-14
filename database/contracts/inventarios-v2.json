@@ -1,0 +1,438 @@
+{
+  "seguridad": {
+    "table": "recursos_seguridad",
+    "model": "RecursoSeguridad",
+    "id": "id_activo",
+    "label": "Recursos de Seguridad",
+    "fields": [
+      [
+        "id_activo",
+        "int",
+        false
+      ],
+      [
+        "nombre",
+        "varchar",
+        true,
+        150
+      ],
+      [
+        "categoria_recurso",
+        "varchar",
+        true,
+        50
+      ],
+      [
+        "funcion_seguridad",
+        "varchar",
+        true,
+        50
+      ],
+      [
+        "responsable",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "criticidad",
+        "varchar",
+        true,
+        10,
+        [
+          "Crítica",
+          "Alta",
+          "Media",
+          "Baja"
+        ]
+      ],
+      [
+        "estado_gestion",
+        "varchar",
+        true,
+        20,
+        [
+          "En uso",
+          "En revisión",
+          "Suspendido",
+          "Retirado"
+        ]
+      ],
+      [
+        "fecha_ultima_revision",
+        "date",
+        true
+      ],
+      [
+        "resultado_revision",
+        "varchar",
+        true,
+        30,
+        [
+          "Conforme",
+          "Con observaciones",
+          "No conforme"
+        ]
+      ],
+      [
+        "fecha_creacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ],
+      [
+        "fecha_modificacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ]
+    ]
+  },
+  "software": {
+    "table": "herramientas_desarrollo",
+    "model": "HerramientaDesarrollo",
+    "id": "id_herramienta_dev",
+    "label": "Herramientas de Desarrollo",
+    "fields": [
+      [
+        "id_herramienta_dev",
+        "int",
+        false
+      ],
+      [
+        "nombre_herramienta",
+        "varchar",
+        false,
+        100
+      ],
+      [
+        "categoria_dev",
+        "varchar",
+        false,
+        50
+      ],
+      [
+        "estado_funcionamiento",
+        "varchar",
+        false,
+        20,
+        [
+          "Activa",
+          "En Evaluación",
+          "Deprecada"
+        ],
+        "Activa"
+      ],
+      [
+        "version_aprobada",
+        "varchar",
+        false,
+        30
+      ],
+      [
+        "fecha_ultima_actualizacion",
+        "date",
+        true
+      ],
+      [
+        "tipo_licencia",
+        "varchar",
+        false,
+        50
+      ],
+      [
+        "costo_total_usd",
+        "decimal",
+        true,
+        null,
+        null,
+        "0.00"
+      ],
+      [
+        "fecha_adquisicion",
+        "date",
+        false
+      ],
+      [
+        "fecha_expiracion",
+        "date",
+        true
+      ]
+    ]
+  },
+  "bigdata": {
+    "table": "activos_datos",
+    "model": "ActivoDatos",
+    "id": "id_activo",
+    "label": "Inventario de Activos de Datos",
+    "fields": [
+      [
+        "id_activo",
+        "int",
+        false
+      ],
+      [
+        "nombre_activo",
+        "varchar",
+        true,
+        150
+      ],
+      [
+        "fecha_creacion",
+        "date",
+        true
+      ],
+      [
+        "fecha_modificacion",
+        "date",
+        true
+      ],
+      [
+        "tipo_activo",
+        "varchar",
+        true,
+        30,
+        [
+          "Dataset",
+          "Tabla",
+          "Modelo ML",
+          "Pipeline ETL",
+          "Dashboard"
+        ]
+      ],
+      [
+        "fuente_origen",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "clasificacion_sensibilidad",
+        "varchar",
+        true,
+        20,
+        [
+          "Pública",
+          "Interna",
+          "Confidencial",
+          "PHI"
+        ]
+      ],
+      [
+        "responsable_owner",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "ubicacion_repositorio",
+        "varchar",
+        true,
+        200
+      ],
+      [
+        "estado",
+        "varchar",
+        true,
+        20,
+        [
+          "Activo",
+          "En revisión",
+          "Obsoleto"
+        ]
+      ]
+    ]
+  },
+  "calidad": {
+    "table": "herramientas_calidad",
+    "model": "HerramientaCalidad",
+    "id": "id_herramienta",
+    "label": "Herramientas de Calidad",
+    "fields": [
+      [
+        "id_herramienta",
+        "int",
+        false
+      ],
+      [
+        "nombre_herramienta",
+        "varchar",
+        true,
+        150
+      ],
+      [
+        "categoria_herramienta",
+        "varchar",
+        true,
+        50,
+        [
+          "Automatización de Pruebas",
+          "Gestión de Bugs",
+          "Pruebas de Rendimiento",
+          "Análisis de Código"
+        ]
+      ],
+      [
+        "responsable",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "criticidad",
+        "varchar",
+        true,
+        10,
+        [
+          "Crítica",
+          "Alta",
+          "Media",
+          "Baja"
+        ]
+      ],
+      [
+        "estado_gestion",
+        "varchar",
+        true,
+        20,
+        [
+          "En uso",
+          "En revisión",
+          "Suspendido",
+          "Retirado"
+        ]
+      ],
+      [
+        "fecha_ultima_revision",
+        "date",
+        true
+      ],
+      [
+        "resultado_revision",
+        "varchar",
+        true,
+        30,
+        [
+          "Conforme",
+          "Con observaciones",
+          "No conforme"
+        ]
+      ],
+      [
+        "fecha_creacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ],
+      [
+        "fecha_modificacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ]
+    ]
+  },
+  "redes": {
+    "table": "dispositivos_red",
+    "model": "DispositivoRed",
+    "id": "id_dispositivo",
+    "label": "Inventario de Dispositivos de Red",
+    "fields": [
+      [
+        "id_dispositivo",
+        "int",
+        false
+      ],
+      [
+        "nombre_dispositivo",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "modelo",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "area_pertenencia",
+        "varchar",
+        true,
+        100,
+        [
+          "Administración",
+          "Sistemas",
+          "Finanzas",
+          "Recursos Humanos",
+          "Comercial",
+          "Operaciones"
+        ]
+      ],
+      [
+        "direccion_ip",
+        "varchar",
+        true,
+        45
+      ],
+      [
+        "red_pertenencia",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "marca",
+        "varchar",
+        true,
+        50
+      ],
+      [
+        "protocolo_enrutamiento",
+        "varchar",
+        true,
+        30,
+        [
+          "OSPF",
+          "RIP",
+          "EIGRP",
+          "BGP",
+          "Estático",
+          "No aplica"
+        ]
+      ],
+      [
+        "tipo_dispositivo",
+        "varchar",
+        true,
+        30,
+        [
+          "Router",
+          "Switch",
+          "Firewall",
+          "Access Point",
+          "Servidor"
+        ]
+      ],
+      [
+        "estado",
+        "varchar",
+        true,
+        20,
+        [
+          "Activo",
+          "Inactivo",
+          "En mantenimiento"
+        ]
+      ]
+    ]
+  }
+}

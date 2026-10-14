@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto';
 import { signSession } from './session-token';
 import { SessionUser } from './session.guard';
 import { SeguridadService } from '../seguridad/seguridad.service';
+import { AREA_NAMES } from '../inventarios/inventory.config';
 
 @Injectable()
 export class AuthService {
@@ -66,7 +67,11 @@ export class AuthService {
     return { message: 'Usuario registrado exitosamente', user };
   }
 
-  async login(loginDto: LoginDto, ip = 'desconocida') {
+  async login(
+    loginDto: LoginDto,
+    ip = 'desconocida',
+    tenant: string | null = null,
+  ) {
     const { correo, contrasena } = loginDto;
     const user = await this.prisma.client.usuario.findUnique({
       where: { correo },
@@ -78,6 +83,8 @@ export class AuthService {
     }
 
     const [salt, key] = user.contrasena_hash.split(':');
+    if (tenant && AREA_NAMES[tenant] !== user.categoria.nombre_categoria)
+      throw new ForbiddenException('La cuenta pertenece a otra área');
     if (!salt || !key || !/^[a-f0-9]{64}$/i.test(key)) {
       await this.seguridad.registrar(correo, ip, 'FALLIDO');
       throw new UnauthorizedException('Credenciales inválidas');

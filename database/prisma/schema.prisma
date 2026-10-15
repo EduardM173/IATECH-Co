@@ -1,5 +1,5 @@
 // database/prisma/schema.prisma
-// IATECH Co. - Diseno de base de datos de activos por area
+// IATECH Co. - Inventario unificado y aislado por area
 // Prisma ORM v7 + PostgreSQL
 
 generator client {
@@ -17,110 +17,76 @@ datasource db {
 // CATEGORIA - una fila por cada area de la empresa
 // ---------------------------------------------------------
 model Categoria {
-  id_categoria     Int       @id @default(autoincrement())
-  nombre_categoria String    @unique @db.VarChar(50)
+  id_categoria     Int    @id @default(autoincrement())
+  nombre_categoria String @unique @db.VarChar(50)
 
-  activos          Activo[]
-  usuarios         Usuario[]
+  inventario Inventario[]
+  usuarios   Usuario[]
 
   @@map("categoria")
 }
 
 // ---------------------------------------------------------
-// ACTIVO - tabla base, campos comunes a todas las areas
+// INVENTARIO - una tabla compartida; id_categoria aisla cada area.
+// Los campos propios de cada area son opcionales a nivel Prisma. La migracion
+// agrega un trigger de PostgreSQL que exige y valida los que correspondan.
 // ---------------------------------------------------------
-model Activo {
-  id_activo      Int       @id @default(autoincrement())
-  codigo         String    @unique @db.VarChar(20)
-  descripcion    String    @db.VarChar(255)
-  id_categoria   Int
-  categoria      Categoria @relation(fields: [id_categoria], references: [id_categoria])
-  fecha_registro DateTime  @default(now()) @db.Date
-  estado         String    @default("ACTIVO") @db.VarChar(20)
+model Inventario {
+  id_inventario      Int       @id @default(autoincrement())
+  id_categoria       Int
+  categoria          Categoria @relation(fields: [id_categoria], references: [id_categoria], onDelete: Restrict, onUpdate: Cascade)
+  nombre             String    @db.VarChar(150)
+  responsable        String?   @db.VarChar(100)
+  estado             String    @db.VarChar(20)
+  fecha_creacion     DateTime  @default(now()) @db.Timestamptz(3)
+  fecha_modificacion DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
 
-  hardware  Hardware?
-  software  Software?
-  redes     Redes?
-  seguridad Seguridad?
-  calidad   Calidad?
-  cloud     Cloud?
-  bigdata   BigData?
+  // Hardware y dispositivos de red
+  tipo_equipo            String?   @db.VarChar(30)
+  marca                  String?   @db.VarChar(50)
+  modelo                 String?   @db.VarChar(100)
+  numero_serie           String?   @db.VarChar(100)
+  departamento           String?   @db.VarChar(100)
+  ubicacion_fisica       String?   @db.VarChar(150)
+  fecha_adquisicion      DateTime? @db.Date
+  fecha_fin_garantia     DateTime? @db.Date
+  direccion_ip           String?   @db.VarChar(45)
+  red_pertenencia        String?   @db.VarChar(100)
+  protocolo_enrutamiento String?   @db.VarChar(30)
+  tipo_dispositivo       String?   @db.VarChar(30)
 
-  @@map("activo")
-}
+  // Software / herramientas de desarrollo
+  categoria_item             String?   @db.VarChar(50)
+  version_aprobada           String?   @db.VarChar(30)
+  fecha_ultima_actualizacion DateTime? @db.Date
+  tipo_licencia              String?   @db.VarChar(50)
+  costo_total_usd            Decimal?  @default(0) @db.Decimal(10, 2)
+  fecha_expiracion           DateTime? @db.Date
 
-// ---------------------------------------------------------
-// Tablas de detalle por area (1 a 1 con ACTIVO)
-// onDelete: Cascade -> al borrar el ACTIVO, se borra su detalle solo
-// ---------------------------------------------------------
-model Hardware {
-  id_activo    Int     @id
-  activo       Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  numero_serie String  @db.VarChar(50)
-  modelo       String? @db.VarChar(50)
-  marca        String? @db.VarChar(50)
+  // Calidad y Seguridad
+  criticidad            String?   @db.VarChar(10)
+  funcion_seguridad     String?   @db.VarChar(50)
+  fecha_ultima_revision DateTime? @db.Date
+  resultado_revision    String?   @db.VarChar(30)
 
-  @@map("hardware")
-}
+  // Big Data y Analitica
+  tipo_activo                String? @db.VarChar(30)
+  fuente_origen              String? @db.VarChar(100)
+  clasificacion_sensibilidad String? @db.VarChar(20)
+  ubicacion_repositorio      String? @db.VarChar(200)
 
-model Software {
-  id_activo        Int       @id
-  activo           Activo    @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  version          String?   @db.VarChar(20)
-  tipo_licencia    String?   @db.VarChar(50)
-  fecha_expiracion DateTime? @db.Date
+  // Cloud
+  proveedor             String?  @db.VarChar(50)
+  tipo_servicio         String?  @db.VarChar(100)
+  identificador_recurso String?  @db.VarChar(512)
+  cuenta_proyecto       String?  @db.VarChar(100)
+  region                String?  @db.VarChar(50)
+  entorno               String?  @db.VarChar(20)
+  costo_mensual_usd     Decimal? @db.Decimal(10, 2)
 
-  @@map("software")
-}
-
-model Redes {
-  id_activo     Int     @id
-  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  direccion_ip  String? @db.VarChar(45)
-  tipo_conexion String? @db.VarChar(50)
-  ancho_banda   String? @db.VarChar(30)
-
-  @@map("redes")
-}
-
-model Seguridad {
-  id_activo      Int     @id
-  activo         Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  tipo_seguridad String? @db.VarChar(50)
-  nivel_acceso   String? @db.VarChar(30)
-  protocolo      String? @db.VarChar(50)
-
-  @@map("seguridad")
-}
-
-model Calidad {
-  id_activo       Int       @id
-  activo          Activo    @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  norma_iso       String?   @db.VarChar(30)
-  certificacion   String?   @db.VarChar(50)
-  fecha_auditoria DateTime? @db.Date
-
-  @@map("calidad")
-}
-
-model Cloud {
-  id_activo     Int     @id
-  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  proveedor     String? @db.VarChar(50)
-  tipo_servicio String? @db.VarChar(50)
-  capacidad     String? @db.VarChar(30)
-
-  @@map("cloud")
-}
-
-model BigData {
-  id_activo     Int     @id
-  activo        Activo  @relation(fields: [id_activo], references: [id_activo], onDelete: Cascade)
-  herramienta   String? @db.VarChar(50)
-  tipo_dato     String? @db.VarChar(50)
-  volumen_datos String? @db.VarChar(30)
-
-  @@map("big_data_analiticas")
+  @@index([id_categoria, estado])
+  @@index([id_categoria, fecha_modificacion, id_inventario])
+  @@map("inventario")
 }
 
 // ---------------------------------------------------------
@@ -137,6 +103,7 @@ model Usuario {
   estado          String    @default("ACTIVO") @db.VarChar(20)
   fecha_creacion  DateTime  @default(now())
 
+  @@index([id_categoria])
   @@map("usuario")
 }
 

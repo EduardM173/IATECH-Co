@@ -15,6 +15,7 @@ export class RegisterDto {
   nombre: string;
 
   @IsEmail()
+  @MaxLength(100)
   correo: string;
 
   @IsString()

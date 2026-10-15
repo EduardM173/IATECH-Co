@@ -1,83 +1,54 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CategoriaDto {
-  @ApiProperty({ description: 'Id de la categoria (area)', type: Number })
+  @ApiProperty({ description: 'Id del area', type: Number })
   id_categoria: number;
 
-  @ApiProperty({
-    description: 'Nombre de la categoria (area)',
-    type: String,
-    example: 'HARDWARE',
-  })
+  @ApiProperty({ description: 'Nombre del area', example: 'HARDWARE' })
   nombre_categoria: string;
 }
 
-export class ActivoListItemDto {
-  @ApiProperty({ description: 'Id del activo', type: Number })
-  id_activo: number;
+export class InventarioListItemDto {
+  @ApiProperty({ description: 'Id del registro de inventario' })
+  id_inventario: number;
 
-  @ApiProperty({
-    description: 'Codigo unico del activo',
-    type: String,
-    example: 'HW-0012',
-  })
-  codigo: string;
+  @ApiProperty({ description: 'Nombre del activo o herramienta' })
+  nombre: string;
 
-  @ApiProperty({ description: 'Descripcion del activo', type: String })
-  descripcion: string;
+  @ApiPropertyOptional({ description: 'Responsable del activo' })
+  responsable: string | null;
 
-  @ApiProperty({
-    description: 'Estado del activo',
-    type: String,
-    example: 'ACTIVO',
-  })
+  @ApiProperty({ description: 'Estado permitido para el area' })
   estado: string;
 
-  @ApiProperty({ description: 'Fecha de registro del activo', type: Date })
-  fecha_registro: Date;
+  @ApiProperty({ description: 'Fecha de creacion' })
+  fecha_creacion: Date;
 
-  @ApiProperty({
-    description: 'Categoria (area) a la que pertenece el activo',
-    type: CategoriaDto,
-  })
+  @ApiProperty({ description: 'Fecha de ultima modificacion' })
+  fecha_modificacion: Date;
+
+  @ApiProperty({ type: CategoriaDto })
   categoria: CategoriaDto;
 
   @ApiProperty({
-    description:
-      'Campos propios del detalle del area (varian segun el area del activo)',
+    description: 'Campos propios del area; no contiene columnas de otras areas',
     type: 'object',
     additionalProperties: true,
   })
   detalle: Record<string, unknown>;
 }
 
-export class PaginatedActivosMetaDto {
-  @ApiProperty({ description: 'Pagina actual', type: Number })
-  page: number;
-
-  @ApiProperty({
-    description: 'Cantidad de resultados por pagina',
-    type: Number,
-  })
-  pageSize: number;
-
-  @ApiProperty({
-    description: 'Cantidad total de activos que coinciden con el filtro',
-    type: Number,
-  })
-  total: number;
-
-  @ApiProperty({ description: 'Cantidad total de paginas', type: Number })
-  totalPages: number;
+export class PaginatedInventarioMetaDto {
+  @ApiProperty() page: number;
+  @ApiProperty() pageSize: number;
+  @ApiProperty() total: number;
+  @ApiProperty() totalPages: number;
 }
 
-export class PaginatedActivosDto {
-  @ApiProperty({ description: 'Listado de activos', type: [ActivoListItemDto] })
-  data: ActivoListItemDto[];
+export class PaginatedInventarioDto {
+  @ApiProperty({ type: [InventarioListItemDto] })
+  data: InventarioListItemDto[];
 
-  @ApiProperty({
-    description: 'Metadatos de paginacion',
-    type: PaginatedActivosMetaDto,
-  })
-  meta: PaginatedActivosMetaDto;
+  @ApiProperty({ type: PaginatedInventarioMetaDto })
+  meta: PaginatedInventarioMetaDto;
 }

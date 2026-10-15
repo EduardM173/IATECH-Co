@@ -31,7 +31,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('IATECH Co. - API de Activos')
     .setDescription(
-      'Endpoints de vista y busqueda de activos por area de la empresa',
+      'Inventario unificado con acceso aislado por area de la empresa',
     )
     .setVersion('1.0')
     .build();

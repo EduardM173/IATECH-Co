@@ -33,7 +33,9 @@ Se necesita una instancia de PostgreSQL. Desde la raíz del repositorio:
 
 Los archivos `.env.example` son plantillas seguras para el equipo: no contienen secretos ni deben reemplazarse con valores reales en Git. En el despliegue actual, Render almacena `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD` y `CORS_ORIGIN`; Vercel almacena `VITE_API_URL` con la URL pública del backend de Render. Para desarrollo local, se usan las direcciones `localhost` incluidas en los ejemplos.
 
-El seed crea las siete categorías, un administrador por área y 20 activos iniciales de demostración distribuidos entre las áreas. Estos activos se insertan en PostgreSQL mediante `upsert`, por lo que ejecutar el seed nuevamente los actualiza sin duplicarlos. Los activos se consultan desde la API con una sesión válida; cada usuario solo puede ver los de su área. El registro de otros usuarios requiere la sesión de un administrador de esa área.
+El seed crea o conserva las siete categorías y un administrador por área. El inventario comienza vacío y utiliza una sola tabla aislada mediante `id_categoria`; cada usuario solo puede consultar los registros de su área. El registro de otros usuarios requiere la sesión de un administrador de esa misma área.
+
+En producción, los scripts `start` y `start:prod` ejecutan primero `prisma generate` y `prisma migrate deploy`. Esto permite aplicar las migraciones en el plan gratuito de Render, donde no hay comando Pre-deploy. La migración `20261014_unified_inventory` elimina definitivamente las tablas y datos del inventario anterior, pero conserva `usuario`, `categoria` y `evento_acceso`.
 
 ## Actividad de seguridad
 

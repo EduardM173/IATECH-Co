@@ -31,7 +31,7 @@ export class ListActivosQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Busqueda libre: filtra por codigo, descripcion y los campos propios del area (contiene, sin distinguir mayusculas)',
+      'Busqueda libre por nombre, responsable y los campos propios del area (sin distinguir mayusculas)',
     type: String,
     example: 'Dell',
   })

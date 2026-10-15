@@ -5,23 +5,12 @@ import { AREA_CONFIG } from './areas.config';
 import { AreaSlug } from './types/area-slug.type';
 import { ListActivosQueryDto } from './dto/list-activos-query.dto';
 import {
-  ActivoListItemDto,
-  PaginatedActivosDto,
+  InventarioListItemDto,
+  PaginatedInventarioDto,
 } from './dto/activo-response.dto';
 
-const DETALLE_INCLUDE = {
-  categoria: true,
-  hardware: true,
-  software: true,
-  redes: true,
-  seguridad: true,
-  calidad: true,
-  cloud: true,
-  bigdata: true,
-} satisfies Prisma.ActivoInclude;
-
-type ActivoWithDetalle = Prisma.ActivoGetPayload<{
-  include: typeof DETALLE_INCLUDE;
+type InventarioConCategoria = Prisma.InventarioGetPayload<{
+  include: { categoria: true };
 }>;
 
 @Injectable()
@@ -30,26 +19,27 @@ export class ActivosService {
 
   async findAll(
     area: AreaSlug,
+    idCategoria: number,
     query: ListActivosQueryDto,
     rawQuery: Record<string, unknown>,
-  ): Promise<PaginatedActivosDto> {
-    const where = this.buildWhere(area, query, rawQuery);
+  ): Promise<PaginatedInventarioDto> {
+    const where = this.buildWhere(area, idCategoria, query, rawQuery);
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
 
-    const [activos, total] = await this.prisma.client.$transaction([
-      this.prisma.client.activo.findMany({
+    const [items, total] = await this.prisma.client.$transaction([
+      this.prisma.client.inventario.findMany({
         where,
-        include: DETALLE_INCLUDE,
-        orderBy: { id_activo: 'desc' },
+        include: { categoria: true },
+        orderBy: [{ fecha_modificacion: 'desc' }, { id_inventario: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prisma.client.activo.count({ where }),
+      this.prisma.client.inventario.count({ where }),
     ]);
 
     return {
-      data: activos.map((activo) => this.toResponseDto(activo, area)),
+      data: items.map((item) => this.toResponseDto(item, area)),
       meta: {
         page,
         pageSize,
@@ -59,111 +49,79 @@ export class ActivosService {
     };
   }
 
-  async findOne(area: AreaSlug, id: number): Promise<ActivoListItemDto> {
-    const activo = await this.prisma.client.activo.findFirst({
-      where: {
-        id_activo: id,
-        categoria: { nombre_categoria: AREA_CONFIG[area].nombreCategoria },
-      },
-      include: DETALLE_INCLUDE,
-    });
-
-    if (!activo) {
-      throw new NotFoundException(
-        `Activo ${id} no encontrado en el area ${area}`,
-      );
-    }
-
-    return this.toResponseDto(activo, area);
-  }
-
-  async findByCodigo(
+  async findOne(
     area: AreaSlug,
-    codigo: string,
-  ): Promise<ActivoListItemDto> {
-    const activo = await this.prisma.client.activo.findFirst({
+    idCategoria: number,
+    id: number,
+  ): Promise<InventarioListItemDto> {
+    const item = await this.prisma.client.inventario.findFirst({
       where: {
-        codigo,
-        categoria: { nombre_categoria: AREA_CONFIG[area].nombreCategoria },
+        id_inventario: id,
+        id_categoria: idCategoria,
       },
-      include: DETALLE_INCLUDE,
+      include: { categoria: true },
     });
 
-    if (!activo) {
+    if (!item) {
       throw new NotFoundException(
-        `Activo con codigo "${codigo}" no encontrado en el area ${area}`,
+        `Registro ${id} no encontrado en el area ${area}`,
       );
     }
 
-    return this.toResponseDto(activo, area);
+    return this.toResponseDto(item, area);
   }
 
-  // Prisma tipa el filtro de cada relacion de detalle con un tipo distinto por modelo
-  // (HardwareWhereInput, SoftwareWhereInput, ...). Como "area" recorre las 7 variantes en
-  // runtime, se arma el objeto where sin tipar estrictamente esa parte dinamica y se castea
-  // al final; los campos que se leen vienen siempre de AREA_CONFIG[area].searchableFields,
-  // que si esta tipado contra el schema real.
   private buildWhere(
     area: AreaSlug,
+    idCategoria: number,
     query: ListActivosQueryDto,
     rawQuery: Record<string, unknown>,
-  ): Prisma.ActivoWhereInput {
+  ): Prisma.InventarioWhereInput {
     const config = AREA_CONFIG[area];
-
-    const detalleFilters: Record<string, unknown> = {};
-    for (const field of config.searchableFields) {
-      const value = rawQuery[field];
-      if (typeof value === 'string' && value.trim() !== '') {
-        detalleFilters[field] = { contains: value, mode: 'insensitive' };
-      }
-    }
-
     const where: Record<string, unknown> = {
-      categoria: { nombre_categoria: config.nombreCategoria },
+      id_categoria: idCategoria,
     };
 
-    if (query.estado) {
-      where.estado = query.estado;
-    }
+    if (query.estado) where.estado = query.estado;
 
-    if (query.q) {
+    if (query.q?.trim()) {
+      const contains = { contains: query.q.trim(), mode: 'insensitive' };
       where.OR = [
-        { codigo: { contains: query.q, mode: 'insensitive' } },
-        { descripcion: { contains: query.q, mode: 'insensitive' } },
-        ...config.searchableFields.map((field) => ({
-          [area]: {
-            is: { [field]: { contains: query.q, mode: 'insensitive' } },
-          },
-        })),
+        { nombre: contains },
+        { responsable: contains },
+        ...config.searchableFields.map((field) => ({ [field]: contains })),
       ];
     }
 
-    if (Object.keys(detalleFilters).length > 0) {
-      where[area] = { is: detalleFilters };
+    for (const field of config.searchableFields) {
+      const value = rawQuery[field];
+      if (typeof value === 'string' && value.trim()) {
+        where[field] = { contains: value.trim(), mode: 'insensitive' };
+      }
     }
 
     return where;
   }
 
   private toResponseDto(
-    activo: ActivoWithDetalle,
+    item: InventarioConCategoria,
     area: AreaSlug,
-  ): ActivoListItemDto {
-    const detalleRaw = (activo[area] ?? {}) as Record<string, unknown>;
+  ): InventarioListItemDto {
+    const raw = item as unknown as Record<string, unknown>;
     const detalle: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(detalleRaw)) {
-      if (key !== 'id_activo') {
-        detalle[key] = value;
-      }
+    for (const field of AREA_CONFIG[area].detailFields) {
+      const value: unknown = raw[field];
+      if (value !== null && value !== undefined) detalle[field] = value;
     }
 
     return {
-      id_activo: activo.id_activo,
-      codigo: activo.codigo,
-      descripcion: activo.descripcion,
-      estado: activo.estado,
-      fecha_registro: activo.fecha_registro,
-      categoria: activo.categoria,
+      id_inventario: item.id_inventario,
+      nombre: item.nombre,
+      responsable: item.responsable,
+      estado: item.estado,
+      fecha_creacion: item.fecha_creacion,
+      fecha_modificacion: item.fecha_modificacion,
+      categoria: item.categoria,
       detalle,
     };
   }

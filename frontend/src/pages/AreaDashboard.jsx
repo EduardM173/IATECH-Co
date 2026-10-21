@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { ApiError, listActivos } from '../lib/api'
 import { getAreaRoute } from '../lib/areas'
@@ -55,9 +55,15 @@ function AreaDashboard() {
       <AreaHeader label={label} />
 
       <main className="mx-auto max-w-7xl p-6 md:p-8">
-        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold">Inventario de {label}</h2>
-          <p className="mt-1 text-sm text-slate-500">{loading ? 'Cargando…' : `${total} activos registrados`}</p>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-2xl font-bold">Inventario de {label}</h2>
+            <p className="mt-1 text-sm text-slate-500">{loading ? 'Cargando…' : `${total} activos registrados`}</p>
+          </div>
+          <Link to={`/dashboard/${area}/importar`} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-4 w-4"><path d="M12 16V4m0 0-4 4m4-4 4 4" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+            Importar CSV / Excel
+          </Link>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

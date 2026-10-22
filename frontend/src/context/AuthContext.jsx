@@ -1,32 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthContext } from "./auth-context";
 import { currentSession, closeSession } from "../lib/api";
-const STORAGE_KEY = "iatech.session";
-function stored() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return null;
-  }
-}
+import { centralOrigin } from "../lib/auth-navigation";
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(stored);
-  const [loading, setLoading] = useState(() => Boolean(stored()?.user));
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const logoutStarted = useRef(false);
   useEffect(() => {
-    if (!stored()?.user) return;
+    localStorage.removeItem("iatech.session");
     let active = true;
-    currentSession(stored()?.token)
+    currentSession()
       .then(({ user }) => {
-        if (active) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
-          setSession({ user });
-        }
+        if (active) setSession({ user });
       })
       .catch(() => {
-        if (active) {
-          localStorage.removeItem(STORAGE_KEY);
-          setSession(null);
-        }
+        if (active) setSession(null);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -42,13 +30,17 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(session?.user),
       loading,
       login(user) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
         setSession({ user });
       },
-      logout() {
-        closeSession().catch(() => {});
-        localStorage.removeItem(STORAGE_KEY);
-        setSession(null);
+      async logout() {
+        if (logoutStarted.current) return;
+        logoutStarted.current = true;
+        try {
+          await closeSession();
+          window.location.replace(new URL("/login", centralOrigin()).href);
+        } catch {
+          window.location.replace(new URL("/logout", centralOrigin()).href);
+        }
       },
     }),
     [session, loading],

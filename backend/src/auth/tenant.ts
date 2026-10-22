@@ -29,10 +29,12 @@ export function originAllowed(origin?: string) {
       url.origin === origin &&
       !url.username &&
       !url.password &&
-      Boolean(areaFromHost(url.hostname)) &&
+      (Boolean(areaFromHost(url.hostname)) ||
+        (url.hostname === 'localhost' && rootDomains().includes('localhost'))) &&
       (url.protocol === 'https:' ||
         (url.protocol === 'http:' &&
-          url.hostname.endsWith('.localhost') &&
+          (url.hostname === 'localhost' ||
+            url.hostname.endsWith('.localhost')) &&
           url.port === '5173'))
     );
   } catch {

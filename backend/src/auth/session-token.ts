@@ -14,17 +14,28 @@ function signature(payload: string): Buffer {
   return createHmac('sha256', getSecret()).update(payload).digest();
 }
 
-export function signSession(userId: number): string {
+export function signSession(
+  userId: number,
+  sessionId?: string,
+  scope?: string,
+): string {
   const payload = Buffer.from(
     JSON.stringify({
       sub: userId,
       exp: Math.floor(Date.now() / 1000) + TOKEN_LIFETIME_SECONDS,
+      ...(sessionId ? { sid: sessionId, scope } : {}),
     }),
   ).toString('base64url');
   return `${payload}.${signature(payload).toString('base64url')}`;
 }
 
-export function verifySession(token: string): number | null {
+export interface SessionClaims {
+  userId: number;
+  sessionId: string | null;
+  scope: string | null;
+}
+
+export function verifySessionClaims(token: string): SessionClaims | null {
   const [payload, signed, extra] = token.split('.');
   if (!payload || !signed || extra) return null;
   const actual = Buffer.from(signed, 'base64url');
@@ -36,12 +47,25 @@ export function verifySession(token: string): number | null {
       Buffer.from(payload, 'base64url').toString('utf8'),
     );
     if (!parsed || typeof parsed !== 'object') return null;
-    const { sub, exp } = parsed as Record<string, unknown>;
+    const { sub, exp, sid, scope } = parsed as Record<string, unknown>;
     if (!Number.isSafeInteger(sub) || typeof sub !== 'number' || sub <= 0)
       return null;
     if (typeof exp !== 'number' || exp <= Date.now() / 1000) return null;
-    return sub;
+    if (typeof sid !== 'undefined' || typeof scope !== 'undefined') {
+      if (
+        typeof sid !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(sid) ||
+        typeof scope !== 'string' ||
+        !/^(central|seguridad|software|bigdata|calidad|redes|hardware|cloud)$/.test(scope)
+      ) return null;
+      return { userId: sub, sessionId: sid, scope };
+    }
+    return { userId: sub, sessionId: null, scope: null };
   } catch {
     return null;
   }
+}
+
+export function verifySession(token: string): number | null {
+  return verifySessionClaims(token)?.userId ?? null;
 }

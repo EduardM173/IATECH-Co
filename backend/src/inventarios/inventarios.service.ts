@@ -440,16 +440,27 @@ export class InventariosService {
       ? Prisma.sql`WHERE ${Prisma.join(clauses, ' AND ')}`
       : Prisma.empty;
   }
-  private sort(config: InventoryConfig, query: Row) {
+  private sort(config: InventoryConfig, query: Row, inventoryOrder = false) {
     const field = fieldConfig(config, query.sort ?? config.id);
     const direction = query.direction ?? 'desc';
     if (typeof direction !== 'string' || !['asc', 'desc'].includes(direction))
       fail('Orden inválido');
+    const order =
+      inventoryOrder && field.values
+        ? Prisma.sql`CASE WHEN ${identifier(field.name)} IS NULL THEN NULL ELSE CASE ${identifier(field.name)} ${Prisma.join(
+            field.values.map(
+              (value, index) => Prisma.sql`WHEN ${value} THEN ${index}`,
+            ),
+            ' ',
+          )} ELSE ${field.values.length} END END`
+        : inventoryOrder && field.type === 'varchar'
+          ? Prisma.sql`LOWER(${identifier(field.name)})`
+          : identifier(field.name);
     const tie =
       field.name === config.id
         ? Prisma.empty
         : Prisma.sql`, ${identifier(config.id)} DESC`;
-    return Prisma.sql`ORDER BY ${identifier(field.name)} ${Prisma.raw(direction.toUpperCase())} NULLS LAST${tie}`;
+    return Prisma.sql`ORDER BY ${order} ${Prisma.raw(direction.toUpperCase())} NULLS LAST${tie}`;
   }
   metadata(area: string) {
     if (['hardware', 'cloud'].includes(area))
@@ -471,7 +482,7 @@ export class InventariosService {
     const page = integer(query.page, 1, 1000000),
       pageSize = integer(query.pageSize, 20, 100);
     const where = this.where(config, query),
-      sort = this.sort(config, query);
+      sort = this.sort(config, query, true);
     return this.transaction(config, async (tx) => {
       const counts = await tx.$queryRaw<{ total: bigint }[]>(
         Prisma.sql`SELECT COUNT(*) AS total FROM ${this.table(config)} ${where}`,

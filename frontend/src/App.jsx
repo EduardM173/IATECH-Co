@@ -1,12 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/useAuth";
-import Login from "./pages/Login";
+import Login, { AccessRedirect, CompleteTransfer, Logout } from "./pages/Login";
 import SecurityActivity from "./pages/SecurityActivity";
 import { getAreaRoute } from "./lib/areas";
 import { activityEnabled } from "./components/AreaHeader";
 import InventoryWorkspace from "./pages/InventoryWorkspace";
 import ReportsWorkspace from "./pages/ReportsWorkspace";
+import { currentTenant } from "./lib/auth-navigation";
 
 function App() {
   const { isAuthenticated, user, loading } = useAuth();
@@ -22,16 +23,16 @@ function App() {
       <Route
         path="/login"
         element={
-          isAuthenticated ? (
-            <Navigate
-              to={getAreaRoute(user?.categoria?.nombre_categoria)}
-              replace
-            />
-          ) : (
-            <Login />
-          )
+          isAuthenticated
+            ? currentTenant()
+              ? <Navigate to={getAreaRoute(user?.categoria?.nombre_categoria)} replace />
+              : <AccessRedirect />
+            : <Login />
         }
       />
+
+      <Route path="/auth/complete" element={<CompleteTransfer />} />
+      <Route path="/logout" element={<Logout />} />
 
       <Route element={<ProtectedRoute />}>
         <Route
@@ -63,7 +64,7 @@ function App() {
         element={
           <Navigate
             to={
-              isAuthenticated
+              isAuthenticated && currentTenant()
                 ? getAreaRoute(user?.categoria?.nombre_categoria)
                 : "/login"
             }

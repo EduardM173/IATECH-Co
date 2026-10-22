@@ -13,3 +13,17 @@ export const AREA_ROUTES = {
 export function getAreaRoute(nombreCategoria) {
   return AREA_ROUTES[nombreCategoria?.toUpperCase()] ?? '/dashboard'
 }
+
+export const AREA_HOSTS = {
+  HARDWARE: 'hardware',
+  SOFTWARE: 'software',
+  REDES: 'redes',
+  SEGURIDAD: 'seguridad',
+  CALIDAD: 'calidad',
+  CLOUD: 'cloud',
+  'BIG DATA ANALITICAS': 'bigdata',
+}
+
+export function getAreaHost(nombreCategoria) {
+  return AREA_HOSTS[nombreCategoria?.toUpperCase()] ?? null
+}

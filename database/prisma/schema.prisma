@@ -146,8 +146,40 @@ model Usuario {
   rol             String    @default("USUARIO") @db.VarChar(20)
   estado          String    @default("ACTIVO") @db.VarChar(20)
   fecha_creacion  DateTime  @default(now())
+  sesiones        SesionAcceso[]
+  transferencias  TransferenciaAcceso[]
 
   @@map("usuario")
+  @@schema("core")
+}
+
+model SesionAcceso {
+  id             String    @id @db.VarChar(64)
+  id_usuario     Int
+  usuario        Usuario   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  ambito         String    @db.VarChar(30)
+  sesion_origen  String?   @db.VarChar(64)
+  expira         DateTime  @db.Timestamptz(3)
+  revocada       DateTime? @db.Timestamptz(3)
+  fecha_creacion DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([id_usuario, expira])
+  @@index([sesion_origen])
+  @@map("sesion_acceso")
+  @@schema("core")
+}
+
+model TransferenciaAcceso {
+  codigo_hash    String   @id @db.VarChar(64)
+  id_usuario     Int
+  usuario        Usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  sesion_origen  String   @db.VarChar(64)
+  area           String   @db.VarChar(30)
+  expira         DateTime @db.Timestamptz(3)
+  fecha_creacion DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expira])
+  @@map("transferencia_acceso")
   @@schema("core")
 }
 

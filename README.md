@@ -32,11 +32,19 @@ Se necesita una instancia de PostgreSQL. Desde la raíz del repositorio:
 4. Copiar `frontend/.env.example` a `frontend/.env`. `VITE_API_URL=/api` utiliza el proxy local y permite las cookies de sesión.
 5. Ejecutar `pnpm --filter database db:generate`, `pnpm --filter database db:deploy` y `pnpm --filter database db:seed`.
 6. Aprovisionar los roles con `database/security/schema-roles.sql` como administrador de PostgreSQL.
-7. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`. Entrar por el subdominio del área, por ejemplo `http://seguridad.localhost:5173/login`.
+7. En terminales separadas, ejecutar `pnpm --filter backend start:dev` y `pnpm --filter frontend dev`. Abrir `http://localhost:5173/login`; el sistema redirige al subdominio del área autorizada.
 
 ### Variables para despliegue
 
-Los archivos `.env.example` son plantillas seguras para el equipo: no contienen secretos ni deben reemplazarse con valores reales en Git. En el despliegue actual, Render almacena `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD` y `CORS_ORIGIN`; Vercel almacena `VITE_API_URL` con la URL pública del backend de Render. Para desarrollo local, se usan las direcciones `localhost` incluidas en los ejemplos.
+Los archivos `.env.example` son plantillas seguras para el equipo: no contienen secretos ni deben reemplazarse con valores reales en Git. Render almacena `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD` y `CORS_ORIGIN`; Vercel compila `VITE_API_URL=/api` para servir el API mediante su proxy. Para desarrollo local, se usan las direcciones `localhost` incluidas en los ejemplos.
+
+El acceso central requiere la migración aditiva `20261014_central_login`. Cada host mantiene su propia cookie HttpOnly; el paso del login central al área utiliza un código aleatorio de un solo uso que vence en 60 segundos. El cierre de sesión revoca primero la sesión del área y luego la central. Las sesiones anteriores a esta migración siguen siendo aceptadas hasta su vencimiento normal de ocho horas.
+Las sesiones nuevas vencen a las ocho horas; para renovarlas se vuelve a iniciar sesión en el acceso central. No se guarda un token de renovación en el navegador.
+
+Para usar subdominios en producción, configurar un dominio real con host central y hosts de área que sirvan el mismo frontend. En Vercel, definir `VITE_CENTRAL_ORIGIN` con el origen HTTPS central, `VITE_TENANT_ROOT_DOMAIN` con el dominio raíz y `VITE_API_URL=/api` para que cada host use el proxy de Vercel. En Render, configurar `CORS_ORIGIN` con el origen central, `TENANT_ROOT_DOMAINS` con el dominio raíz, `API_HOSTNAMES` con los hostnames reales del backend y del host central si el proxy conserva su cabecera Host, y `TENANT_REQUIRE_SUBDOMAIN=true`. Si no existe un dominio con subdominios configurados, dejar `VITE_TENANT_ROOT_DOMAIN` vacío y poner `TENANT_REQUIRE_SUBDOMAIN=false` para usar el flujo de un solo host hasta tenerlo. No usar un dominio supuesto como valor de producción.
+
+La tabla actual de usuarios asigna un único `id_categoria` a cada `correo`; el acceso a varias áreas requiere una asociación explícita en una fase posterior. El login central no fusiona cuentas ni infiere áreas por correo.
+La unicidad de `correo` distingue mayúsculas y minúsculas. Antes de activar el flujo en una base existente, revisar variantes con `SELECT lower(correo), count(*) FROM core.usuario GROUP BY lower(correo) HAVING count(*) > 1;`. El login conserva la coincidencia exacta actual y no modifica cuentas automáticamente.
 
 El seed crea las siete categorías y las cuentas administradoras que falten, sin reemplazar contraseñas. El inventario antiguo era de prueba y se descarta en la migración de fase 2; las nuevas tablas empiezan vacías. La migración se ha probado únicamente en una base aislada, no en producción. El registro de otros usuarios requiere la sesión de un administrador de esa área.
 

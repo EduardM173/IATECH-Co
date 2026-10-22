@@ -213,6 +213,7 @@ async function main() {
     },
   };
   const ids: Record<string, number> = {};
+  const sortFixtureIds: number[] = [];
   try {
     for (const [area, category] of Object.entries(categories)) {
       const cat = await prisma.categoria.findUniqueOrThrow({
@@ -261,6 +262,29 @@ async function main() {
         .expect(201);
       ids[area] = Number(readBody(created)[contract[area].id]);
       check(ids[area] > 0, 'ID generado');
+      if (area === 'seguridad') {
+        for (const [index, criticidad] of [
+          'Crítica',
+          'Alta',
+          'Media',
+          'Baja',
+        ].entries()) {
+          const orderedRecord = await request(server)
+            .post('/inventarios/seguridad')
+            .set('Origin', 'http://seguridad.localhost:5173')
+            .set('Authorization', 'Bearer ' + sessions.seguridad.token)
+            .send({
+              ...records.seguridad,
+              nombre: runId + ' orden ' + criticidad,
+              criticidad,
+              fecha_ultima_revision: `2026-01-0${index + 1}`,
+            })
+            .expect(201);
+          sortFixtureIds.push(
+            Number(readBody(orderedRecord).id_activo),
+          );
+        }
+      }
       await request(server)
         .get('/auth/me')
         .set('Origin', 'http://' + area + '.localhost:5173')
@@ -428,15 +452,128 @@ async function main() {
       }
     }
     const sec = sessions.seguridad;
-    await request(server)
+    const sortPage1 = await request(server)
+      .get(
+        `/inventarios/seguridad?q=${runId}&sort=criticidad&direction=asc&page=1&pageSize=2`,
+      )
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .expect(200);
+    const sortPage1Body = readBody(sortPage1);
+    assert.deepEqual(
+      sortPage1Body.data.map((row: { criticidad: string }) => row.criticidad),
+      ['Crítica', 'Alta'],
+    );
+    assert.equal(sortPage1Body.meta.total, 5);
+    assert.equal(sortPage1Body.meta.totalPages, 3);
+    const datePage3 = await request(server)
+      .get(
+        `/inventarios/seguridad?q=${runId}&sort=fecha_ultima_revision&direction=asc&page=3&pageSize=2`,
+      )
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .expect(200);
+    assert.deepEqual(
+      readBody(datePage3).data.map(
+        (row: { fecha_ultima_revision: string | null }) =>
+          row.fecha_ultima_revision,
+      ),
+      [null],
+    );
+    const sortPage2 = await request(server)
+      .get(
+        `/inventarios/seguridad?q=${runId}&sort=criticidad&direction=asc&page=2&pageSize=2`,
+      )
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .expect(200);
+    const sortPage2Body = readBody(sortPage2);
+    assert.deepEqual(
+      sortPage2Body.data.map((row: { criticidad: string }) => row.criticidad),
+      ['Alta', 'Media'],
+    );
+    assert.equal(sortPage2Body.data[0].id_activo, ids.seguridad);
+    const sortPage3 = await request(server)
+      .get(
+        `/inventarios/seguridad?q=${runId}&sort=criticidad&direction=desc&page=3&pageSize=2`,
+      )
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + sec.token)
+      .expect(200);
+    assert.deepEqual(
+      readBody(sortPage3).data.map((row: { criticidad: string }) => row.criticidad),
+      ['Crítica'],
+    );
+    checks += 4;
+    const centralLogin = await request(server)
       .post('/auth/login')
       .set('Origin', 'http://localhost:5173')
       .send({
         correo: runId + '.seguridad@iatech.test',
         contrasena: password,
       })
+      .expect(200);
+    const centralCookie = (centralLogin.headers['set-cookie'] as unknown as string[])[0].split(';')[0];
+    const centralToken = readBody(centralLogin).token;
+    await request(server)
+      .get('/auth/me')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', centralCookie)
+      .expect(200);
+    await request(server)
+      .get('/inventarios/seguridad/metadatos')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Authorization', 'Bearer ' + centralToken)
       .expect(403);
-    checks++;
+    await request(server)
+      .post('/auth/transfer/create')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', centralCookie)
+      .set('X-IATECH-CSRF', '1')
+      .send({ area: 'software' })
+      .expect(403);
+    const transfer = await request(server)
+      .post('/auth/transfer/create')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', centralCookie)
+      .set('X-IATECH-CSRF', '1')
+      .send({ area: 'seguridad' })
+      .expect(201);
+    const code = readBody(transfer).code;
+    const exchanged = await request(server)
+      .post('/auth/transfer/exchange')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .send({ code })
+      .expect(200);
+    const areaCookie = (exchanged.headers['set-cookie'] as unknown as string[])[0].split(';')[0];
+    await request(server)
+      .get('/auth/me')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Cookie', areaCookie)
+      .expect(200);
+    await request(server)
+      .post('/auth/transfer/exchange')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .send({ code })
+      .expect(401);
+    await request(server)
+      .post('/auth/logout')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Cookie', areaCookie)
+      .set('X-IATECH-CSRF', '1')
+      .expect(201);
+    await request(server)
+      .get('/auth/me')
+      .set('Origin', 'http://seguridad.localhost:5173')
+      .set('Cookie', areaCookie)
+      .expect(401);
+    await request(server)
+      .post('/auth/logout')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', centralCookie)
+      .set('X-IATECH-CSRF', '1')
+      .expect(201);
+    checks += 10;
     const soft = sessions.software;
     const softAuth = 'Bearer ' + soft.token;
     const softOrigin = 'http://software.localhost:5173';
@@ -809,6 +946,11 @@ async function main() {
     );
   } finally {
     // Los fixtures son propios de esta ejecución y la URL ya se validó como _test local.
+    if (sortFixtureIds.length) {
+      await prisma.$executeRaw(
+        Prisma.sql`DELETE FROM "seguridad"."recursos_seguridad" WHERE "id_activo" IN (${Prisma.join(sortFixtureIds)})`,
+      );
+    }
     for (const [area, cfg] of Object.entries(contract)) {
       const name = cfg.fields.find((field) =>
         field[0].startsWith('nombre'),

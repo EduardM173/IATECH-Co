@@ -10,13 +10,13 @@ import {
   ValidationPipe,
   Get,
   Res,
-  ForbiddenException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { requestTenant } from './tenant';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { CreateTransferDto, ExchangeTransferDto } from './dto/transfer.dto';
 import { SessionGuard } from './session.guard';
 import type { AuthenticatedRequest } from './session.guard';
 
@@ -55,10 +55,6 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const tenant = requestTenant(request);
-    if (process.env.TENANT_REQUIRE_SUBDOMAIN === 'true' && !tenant)
-      throw new ForbiddenException(
-        'Selecciona el área de acceso antes de iniciar sesión',
-      );
     const result = await this.authService.login(
       loginDto,
       request.ip ?? 'desconocida',
@@ -72,6 +68,42 @@ export class AuthController {
       maxAge: 8 * 60 * 60 * 1000,
     });
     return result;
+  }
+
+  @Post('transfer/create')
+  @UseGuards(SessionGuard)
+  async createTransfer(
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    body: CreateTransferDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.authService.createTransfer(
+      request.sessionUser,
+      request.sessionScope === 'central' ? request.sessionId : null,
+      body.area,
+    );
+  }
+
+  @Post('transfer/exchange')
+  @HttpCode(HttpStatus.OK)
+  async exchangeTransfer(
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    body: ExchangeTransferDto,
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.exchangeTransfer(
+      body.code,
+      requestTenant(request),
+    );
+    response.cookie('iatech_session', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+    return { user: result.user };
   }
 
   @Get('me')
@@ -96,7 +128,11 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(SessionGuard)
-  logout(@Res({ passthrough: true }) response: Response) {
+  async logout(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.authService.revokeSession(request.sessionId);
     response.clearCookie('iatech_session', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

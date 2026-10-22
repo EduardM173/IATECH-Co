@@ -59,6 +59,17 @@ const activeFilters = (filters) =>
       ["isNull", "notNull"].includes(f.op) ||
       (f.value !== "" && f.value !== undefined && (f.op !== "between" || f.to)),
   );
+function pageNumberItems(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const pages = [1];
+  if (current > 3) pages.push("start-gap");
+  const first = current <= 3 ? 2 : current - 1;
+  const last = current >= total - 2 ? total - 1 : current + 1;
+  for (let page = first; page <= last; page++) pages.push(page);
+  if (current < total - 2) pages.push("end-gap");
+  pages.push(total);
+  return pages;
+}
 function CrossTable({ result }) {
   const [first, second] = result.groupBy;
   const key = (v) => JSON.stringify(v);
@@ -208,6 +219,17 @@ export default function InventoryWorkspace({ mode }) {
                 )
               : await inventoryList(area, token, query, controller.signal);
           setResult(data);
+          if (
+            mode === "inventory" &&
+            query.page > Math.max(1, data.meta.totalPages)
+          ) {
+            const lastPage = Math.max(1, data.meta.totalPages);
+            setCriteria((current) =>
+              current.page === query.page
+                ? { ...current, page: lastPage }
+                : current,
+            );
+          }
         } catch (err) {
           if (controller.signal.aborted) return;
           if (err instanceof ApiError && err.status === 401) logout();
@@ -248,6 +270,15 @@ export default function InventoryWorkspace({ mode }) {
     setLoading(true);
     setCriteria(value);
   }
+  function sortInventory(column) {
+    const nextDirection =
+      activeSort === column &&
+      criteria.sort !== undefined &&
+      criteria.direction === "asc"
+        ? "desc"
+        : "asc";
+    change({ ...criteria, sort: column, direction: nextDirection, page: 1 });
+  }
   function chooseGroup(which, value) {
     setCriteria((c) => ({ ...c, page: 1 }));
     (which === 1 ? setGroup1 : setGroup2)(value);
@@ -275,6 +306,16 @@ export default function InventoryWorkspace({ mode }) {
   }
   const shownColumns =
     result?.columns ?? config?.fields?.map((f) => f.name) ?? [];
+  const activeSort = criteria.sort ?? config?.id;
+  const totalRecords = result?.meta?.total ?? 0;
+  const pageCount = Math.max(1, result?.meta?.totalPages ?? 1);
+  const currentPage = Math.min(result?.meta?.page ?? criteria.page, pageCount);
+  const pageSize = result?.meta?.pageSize ?? criteria.pageSize;
+  const firstRecord = totalRecords ? (currentPage - 1) * pageSize + 1 : 0;
+  const lastRecord = Math.min(currentPage * pageSize, totalRecords);
+  const filteredResults =
+    Boolean(criteria.q.trim()) || activeFilters(criteria.filters).length > 0;
+  const visiblePages = pageNumberItems(currentPage, pageCount);
   const fieldsByName = Object.fromEntries(
     (config?.fields ?? []).map((field) => [field.name, field]),
   );
@@ -577,20 +618,9 @@ export default function InventoryWorkspace({ mode }) {
                   </button>
                 </div>
               )}
-              <div
-                className={
-                  mode === "inventory"
-                    ? "inventory-tools"
-                    : "mb-4 flex flex-wrap items-center justify-between gap-3"
-                }
-              >
-                <p
-                  className={
-                    mode === "inventory"
-                      ? "inventory-count"
-                      : "text-sm text-slate-500"
-                  }
-                >
+              {mode !== "inventory" && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-slate-500">
                   {loading ? (
                     "Cargando…"
                   ) : (
@@ -602,13 +632,7 @@ export default function InventoryWorkspace({ mode }) {
                     </>
                   )}
                 </p>
-                <div
-                  className={
-                    mode === "inventory"
-                      ? "inventory-tools"
-                      : "flex flex-wrap gap-2"
-                  }
-                >
+                <div className="flex flex-wrap gap-2">
                   {mode !== "reports" && (
                     <>
                       <select
@@ -659,7 +683,8 @@ export default function InventoryWorkspace({ mode }) {
                     ))}
                   </select>
                 </div>
-              </div>
+                </div>
+              )}
             </div>
             {error && (
               <p
@@ -682,6 +707,12 @@ export default function InventoryWorkspace({ mode }) {
                   ? "inventory-table-viewport"
                   : "max-w-full overflow-auto"
               }
+              tabIndex={mode === "inventory" ? 0 : undefined}
+              aria-label={
+                mode === "inventory"
+                  ? `Tabla de inventario de ${label}; desplázate horizontalmente para ver todas las columnas`
+                  : undefined
+              }
               aria-busy={loading}
             >
               <table
@@ -693,11 +724,43 @@ export default function InventoryWorkspace({ mode }) {
               >
                 <thead>
                   <tr>
-                    {shownColumns.map((column) => (
-                      <th key={column} title={column}>
-                        {mode === "inventory" ? readableLabel(column) : column}
-                      </th>
-                    ))}
+                    {shownColumns.map((column) => {
+                      const sorted = activeSort === column;
+                      return (
+                        <th
+                          key={column}
+                          title={column}
+                          aria-sort={
+                            mode === "inventory" && sorted
+                              ? criteria.direction === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : undefined
+                          }
+                        >
+                          {mode === "inventory" ? (
+                            <button
+                              type="button"
+                              className="inventory-sort-button"
+                              onClick={() => sortInventory(column)}
+                              disabled={loading}
+                              aria-label={`Ordenar por ${readableLabel(column)}. Orden actual: ${sorted ? (criteria.direction === "asc" ? "ascendente" : "descendente") : "sin ordenar"}`}
+                            >
+                              <span>{readableLabel(column)}</span>
+                              <span className="inventory-sort-indicator" aria-hidden="true">
+                                {sorted
+                                  ? criteria.direction === "asc"
+                                    ? "↑"
+                                    : "↓"
+                                  : "↕"}
+                              </span>
+                            </button>
+                          ) : (
+                            column
+                          )}
+                        </th>
+                      );
+                    })}
                     {mode === "inventory" && user.rol === "ADMIN" && (
                       <th
                         className={
@@ -847,8 +910,85 @@ export default function InventoryWorkspace({ mode }) {
                   </p>
                 </div>
               )}
-            {!loading && !error && result?.meta.totalPages > 1 && (
-              <div className="inventory-pagination">
+            {mode === "inventory" && result?.meta ? (
+              <div className="inventory-pagination" aria-busy={loading}>
+                <p className="inventory-pagination-summary" role="status" aria-live="polite">
+                  Mostrando {firstRecord}–{lastRecord} de {totalRecords} {" "}
+                  {filteredResults ? "registros filtrados" : "registros"}
+                  <span>
+                    Página {currentPage} de {pageCount}
+                  </span>
+                </p>
+                <nav
+                  className="inventory-page-nav"
+                  aria-label="Paginación del inventario"
+                >
+                  <button
+                    type="button"
+                    className="inventory-page-step"
+                    disabled={loading || currentPage <= 1}
+                    onClick={() =>
+                      change({ ...criteria, page: currentPage - 1 })
+                    }
+                  >
+                    Anterior
+                  </button>
+                  <div className="inventory-page-numbers">
+                    {visiblePages.map((page) =>
+                      typeof page === "number" ? (
+                        <button
+                          key={page}
+                          type="button"
+                          className="inventory-page-number"
+                          aria-label={`Ir a la página ${page}`}
+                          aria-current={page === currentPage ? "page" : undefined}
+                          disabled={loading || page === currentPage}
+                          onClick={() => change({ ...criteria, page })}
+                        >
+                          {page}
+                        </button>
+                      ) : (
+                        <span key={page} aria-hidden="true" className="inventory-page-ellipsis">
+                          …
+                        </span>
+                      ),
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="inventory-page-step"
+                    disabled={loading || currentPage >= pageCount}
+                    onClick={() =>
+                      change({ ...criteria, page: currentPage + 1 })
+                    }
+                  >
+                    Siguiente
+                  </button>
+                </nav>
+                <label className="inventory-page-size">
+                  <span>Filas por página</span>
+                  <select
+                    aria-label="Registros por página"
+                    value={criteria.pageSize}
+                    disabled={loading}
+                    onChange={(event) =>
+                      change({
+                        ...criteria,
+                        pageSize: Number(event.target.value),
+                        page: 1,
+                      })
+                    }
+                  >
+                    {[10, 20, 50, 100].map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : !loading && !error && result?.meta.totalPages > 1 ? (
+              <div className="inventory-pagination-legacy">
                 <button
                   className="inventory-button"
                   disabled={criteria.page === 1}
@@ -871,7 +1011,7 @@ export default function InventoryWorkspace({ mode }) {
                   Siguiente
                 </button>
               </div>
-            )}
+            ) : null}
           </section>
         )}
         {!config && error && (

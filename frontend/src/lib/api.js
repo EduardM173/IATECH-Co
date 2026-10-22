@@ -40,6 +40,10 @@ export const login = (correo, contrasena) =>
 export const currentSession = (token) => apiRequest("/auth/me", { token });
 export const closeSession = () =>
   apiRequest("/auth/logout", { method: "POST" });
+export const createTransfer = (area) =>
+  apiRequest("/auth/transfer/create", { method: "POST", body: { area } });
+export const exchangeTransfer = (code) =>
+  apiRequest("/auth/transfer/exchange", { method: "POST", body: { code } });
 const normalizeArea = (area) => (area === "big-data" ? "bigdata" : area);
 export const inventoryMetadata = (area, token, signal) =>
   apiRequest("/inventarios/" + normalizeArea(area) + "/metadatos", {

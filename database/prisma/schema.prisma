@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["public", "core", "seguridad", "software", "bigdata", "calidad", "redes"]
+  schemas  = ["public", "core", "seguridad", "software", "bigdata", "calidad", "redes", "hardware", "cloud"]
   // La URL de conexion ya NO va aqui en Prisma 7.
   // Vive en prisma.config.ts (ver ese archivo).
 }
@@ -276,4 +276,38 @@ model DispositivoRed {
 
   @@map("dispositivos_red")
   @@schema("redes")
+}
+
+model RecursoHardware {
+  id_activo             Int       @id @default(autoincrement())
+  nombre                String?   @db.VarChar(150)
+  categoria_recurso     String?   @db.VarChar(50)
+  funcion_seguridad     String?   @db.VarChar(50)
+  responsable           String?   @db.VarChar(100)
+  criticidad            String?   @db.VarChar(10)
+  estado_gestion        String?   @db.VarChar(20)
+  fecha_ultima_revision DateTime? @db.Date
+  resultado_revision    String?   @db.VarChar(30)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamp(3)
+  fecha_modificacion    DateTime  @default(now()) @db.Timestamp(3)
+
+  @@map("recursos_hardware")
+  @@schema("hardware")
+}
+
+model RecursoCloud {
+  id_recurso_cloud Int       @id @default(autoincrement())
+  nombre_recurso   String?   @db.VarChar(150)
+  tipo_recurso     String?   @db.VarChar(50)
+  proveedor_cloud  String?   @db.VarChar(20)
+  region_zona      String?   @db.VarChar(50)
+  ambiente         String?   @db.VarChar(20)
+  estado_operativo String?   @db.VarChar(25)
+  criticidad       String?   @db.VarChar(10)
+  responsable_equipo String? @db.VarChar(100)
+  fecha_creacion   DateTime? @db.Date
+  costo_mensual_usd Decimal? @db.Decimal(10, 2)
+
+  @@map("recursos_cloud")
+  @@schema("cloud")
 }

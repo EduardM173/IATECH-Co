@@ -35,3 +35,17 @@ DO $$ DECLARE area TEXT; BEGIN
  EXECUTE format('GRANT %I TO %I', 'iatech_' || area, current_user);
  END LOOP;
 END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iatech_hardware') THEN CREATE ROLE iatech_hardware NOLOGIN NOINHERIT; END IF; END $$;
+REVOKE ALL ON SCHEMA "hardware" FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA "hardware" FROM PUBLIC;
+GRANT USAGE ON SCHEMA "hardware" TO iatech_hardware;
+GRANT SELECT, INSERT, UPDATE ON "hardware"."recursos_hardware" TO iatech_hardware;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "hardware" TO iatech_hardware;
+DO $$ BEGIN EXECUTE format('GRANT %I TO %I', 'iatech_hardware', current_user); END $$;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'iatech_cloud') THEN CREATE ROLE iatech_cloud NOLOGIN NOINHERIT; END IF; END $$;
+REVOKE ALL ON SCHEMA "cloud" FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA "cloud" FROM PUBLIC;
+GRANT USAGE ON SCHEMA "cloud" TO iatech_cloud;
+GRANT SELECT, INSERT, UPDATE ON "cloud"."recursos_cloud" TO iatech_cloud;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "cloud" TO iatech_cloud;
+DO $$ BEGIN EXECUTE format('GRANT %I TO %I', 'iatech_cloud', current_user); END $$;

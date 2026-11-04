@@ -1,0 +1,43 @@
+name: Contratos y aislamiento de inventarios
+on:
+  pull_request:
+  push:
+    branches: [feat/avance-inventarios-fase2]
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase2-ci-only
+          POSTGRES_DB: iatech_ci_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:phase2-ci-only@127.0.0.1:5432/iatech_ci_test
+      SEED_ADMIN_PASSWORD: phase2-ci-seed-password
+      AUTH_SECRET: phase2-ci-secret-with-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter database db:generate
+      - run: pnpm --filter database db:deploy
+      - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f database/security/schema-roles.sql
+      - run: pnpm --filter database db:seed
+      - run: pnpm --filter database test:migration
+      - run: pnpm --filter backend test:phase2
+      - run: pnpm --filter backend test --runInBand
+      - run: pnpm --filter backend test:e2e --runInBand
+      - run: pnpm --filter backend typecheck
+      - run: pnpm --filter frontend lint
+      - run: pnpm --filter frontend build

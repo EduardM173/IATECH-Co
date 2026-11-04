@@ -62,13 +62,13 @@ function check(condition: unknown, message: string) {
 async function main() {
   assert.equal(
     Object.values(contract).reduce((sum, area) => sum + area.fields.length, 0),
-    51,
+    73,
   );
   for (const [area, c] of Object.entries(contract)) {
     const cols = await prisma.$queryRaw<Record<string, unknown>[]>(
       Prisma.sql`SELECT column_name,data_type,character_maximum_length,numeric_precision,numeric_scale,datetime_precision,is_nullable,column_default FROM information_schema.columns WHERE table_schema=${area} AND table_name=${c.table} ORDER BY ordinal_position`,
     );
-    assert.equal(cols.length, area === 'seguridad' ? 11 : 10);
+    assert.equal(cols.length, ['seguridad', 'hardware', 'cloud'].includes(area) ? 11 : 10);
     assert.deepEqual(
       cols.map((col) => col.column_name),
       c.fields.map((f) => f[0]),
@@ -129,7 +129,7 @@ async function main() {
     );
   }
   console.log(
-    'Contrato PostgreSQL: 51 columnas verificadas, incluidos orden, dominios, precisión, PK, NULL y defaults',
+    'Contrato PostgreSQL: 73 columnas verificadas, incluidos orden, dominios, precisión, PK, NULL y defaults',
   );
   process.env.AUTH_SECRET =
     'phase-two-integration-secret-at-least-32-characters';
@@ -155,11 +155,35 @@ async function main() {
     bigdata: 'BIG DATA ANALITICAS',
     calidad: 'CALIDAD',
     redes: 'REDES',
+    hardware: 'HARDWARE',
+    cloud: 'CLOUD',
   };
   const runId = randomBytes(5).toString('hex');
   const password = 'phase2-test-password-2026!';
   const sessions: Record<string, { token: string; cookie: string }> = {};
   const records: Record<string, Record<string, unknown>> = {
+    hardware: {
+      nombre: 'Prueba ' + runId,
+      categoria_recurso: 'Equipo',
+      funcion_seguridad: null,
+      responsable: 'Equipo Hardware',
+      criticidad: 'Alta',
+      estado_gestion: 'En uso',
+      fecha_ultima_revision: '2026-10-13',
+      resultado_revision: null,
+    },
+    cloud: {
+      nombre_recurso: 'Prueba ' + runId,
+      tipo_recurso: 'Instancia VM',
+      proveedor_cloud: 'AWS',
+      region_zona: 'us-east-1',
+      ambiente: 'QA/Pruebas',
+      estado_operativo: 'En ejecución',
+      criticidad: 'Media',
+      responsable_equipo: 'CloudOps',
+      fecha_creacion: '2026-10-13',
+      costo_mensual_usd: '25.50',
+    },
     seguridad: {
       nombre: '=' + runId,
       categoria_recurso: null,
@@ -307,14 +331,16 @@ async function main() {
         String(readBody(invalid).message).includes('Columna no permitida'),
         'Rechaza columnas técnicas',
       );
-      const field = contract[area].fields.find((f) => Array.isArray(f[4]))![0];
-      await request(server)
-        .post('/inventarios/' + area)
-        .set('Origin', 'http://' + area + '.localhost:5173')
-        .set('Authorization', 'Bearer ' + sessions[area].token)
-        .send({ ...records[area], [field]: 'NO_APROBADO' })
-        .expect(400);
-      checks++;
+      const restricted = contract[area].fields.find((f) => Array.isArray(f[4]));
+      if (restricted) {
+        await request(server)
+          .post('/inventarios/' + area)
+          .set('Origin', 'http://' + area + '.localhost:5173')
+          .set('Authorization', 'Bearer ' + sessions[area].token)
+          .send({ ...records[area], [restricted[0]]: 'NO_APROBADO' })
+          .expect(400);
+        checks++;
+      }
       await request(server)
         .post('/auth/login')
         .set('Origin', 'http://' + area + '.localhost:5173')
@@ -330,6 +356,13 @@ async function main() {
         user.contrasena_hash,
       );
     }
+    await request(server)
+      .post('/inventarios/cloud')
+      .set('Origin', 'http://cloud.localhost:5173')
+      .set('Authorization', 'Bearer ' + sessions.cloud.token)
+      .send({ ...records.cloud, costo_mensual_usd: '-0.01' })
+      .expect(400);
+    checks++;
     for (const [area, session] of Object.entries(sessions)) {
       for (const other of Object.keys(sessions)) {
         if (other === area) continue;
@@ -377,7 +410,8 @@ async function main() {
         .expect(403);
       checks += 2;
       const cfg = contract[area];
-      const column = cfg.fields.find((f) => Array.isArray(f[4]))![0];
+      const column = (cfg.fields.find((f) => Array.isArray(f[4])) ??
+        cfg.fields.find((f) => f[0] === 'categoria_recurso'))![0];
       const report = await request(server)
         .post('/reportes/' + area)
         .set('Origin', 'http://' + area + '.localhost:5173')
@@ -739,7 +773,7 @@ async function main() {
       const cat = await prisma.categoria.findUniqueOrThrow({
         where: { nombre_categoria: area.toUpperCase() },
       });
-      check(Boolean(cat), 'Se conserva configuración pendiente ' + area);
+      check(Boolean(cat), 'Se conserva configuración de ' + area);
     }
     for (const [area, session] of Object.entries(sessions)) {
       const cfg = contract[area];
@@ -799,13 +833,14 @@ async function main() {
         readBody(imported).imported === 1 && (await count()) === before + 1,
         'Importación persistida de ' + area,
       );
-      const enumField = supplied.find((f) => f[4]?.length)!;
+      const invalidField = supplied.find((f) => f[4]?.length) ??
+        supplied.find((f) => f[0] === 'nombre')!;
       sheet.addRow([
         1,
         ...supplied.map((f) => records[area][f[0]] as ExcelJS.CellValue),
       ]);
-      sheet.getRow(3).getCell(supplied.indexOf(enumField) + 2).value =
-        'NO_APROBADO';
+      sheet.getRow(3).getCell(supplied.indexOf(invalidField) + 2).value =
+        invalidField[4]?.length ? 'NO_APROBADO' : 'X'.repeat(151);
       const invalidBytes = Buffer.from(await workbook.xlsx.writeBuffer());
       const invalid = await request(server)
         .post('/inventarios/' + area + '/importar/vista-previa')
@@ -947,7 +982,7 @@ async function main() {
     console.log(
       'Integración real: ' +
         checks +
-        ' comprobaciones pasaron (aislamiento entre cinco áreas, cookies/CSRF, reportes, XLSX, NULL y roles)',
+        ' comprobaciones pasaron (aislamiento entre siete áreas, cookies/CSRF, reportes, XLSX, NULL y roles)',
     );
   } finally {
     // Los fixtures son propios de esta ejecución y la URL ya se validó como _test local.
@@ -956,7 +991,8 @@ async function main() {
         Prisma.sql`DELETE FROM "seguridad"."recursos_seguridad" WHERE "id_activo" IN (${Prisma.join(sortFixtureIds)})`,
       );
     }
-    for (const [area, cfg] of Object.entries(contract)) {
+    for (const area of Object.keys(categories)) {
+      const cfg = contract[area];
       const name = cfg.fields.find((field) =>
         field[0].startsWith('nombre'),
       )![0];

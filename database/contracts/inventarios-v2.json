@@ -434,5 +434,202 @@
         ]
       ]
     ]
+  },
+  "hardware": {
+    "table": "recursos_hardware",
+    "model": "RecursoHardware",
+    "id": "id_activo",
+    "label": "Recursos de Hardware",
+    "fields": [
+      [
+        "id_activo",
+        "int",
+        false
+      ],
+      [
+        "nombre",
+        "varchar",
+        true,
+        150
+      ],
+      [
+        "categoria_recurso",
+        "varchar",
+        true,
+        50
+      ],
+      [
+        "funcion_seguridad",
+        "varchar",
+        true,
+        50
+      ],
+      [
+        "responsable",
+        "varchar",
+        true,
+        100
+      ],
+      [
+        "criticidad",
+        "varchar",
+        true,
+        10
+      ],
+      [
+        "estado_gestion",
+        "varchar",
+        true,
+        20
+      ],
+      [
+        "fecha_ultima_revision",
+        "date",
+        true
+      ],
+      [
+        "resultado_revision",
+        "varchar",
+        true,
+        30
+      ],
+      [
+        "fecha_creacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ],
+      [
+        "fecha_modificacion",
+        "timestamp",
+        false,
+        null,
+        null,
+        "now"
+      ]
+    ]
+  },
+  "cloud": {
+    "table": "recursos_cloud",
+    "model": "RecursoCloud",
+    "id": "id_recurso_cloud",
+    "label": "Recursos Cloud",
+    "fields": [
+      [
+        "id_recurso_cloud",
+        "int",
+        false
+      ],
+      [
+        "nombre_recurso",
+        "varchar",
+        true,
+        150
+      ],
+      [
+        "tipo_recurso",
+        "varchar",
+        true,
+        50,
+        [
+          "Instancia VM",
+          "Contenedor/K8s",
+          "Bucket almacenamiento",
+          "Base de datos",
+          "Función serverless",
+          "Red/VPC/Balanceador",
+          "Monitoreo/Backup"
+        ]
+      ],
+      [
+        "proveedor_cloud",
+        "varchar",
+        true,
+        20,
+        [
+          "AWS",
+          "Azure",
+          "GCP"
+        ]
+      ],
+      [
+        "region_zona",
+        "varchar",
+        true,
+        50,
+        [
+          "us-east-1",
+          "us-west-2",
+          "sa-east-1",
+          "eu-west-1",
+          "eastus",
+          "brazilsouth",
+          "westeurope",
+          "us-central1",
+          "southamerica-east1",
+          "europe-west1"
+        ]
+      ],
+      [
+        "ambiente",
+        "varchar",
+        true,
+        20,
+        [
+          "Producción",
+          "Desarrollo",
+          "QA/Pruebas"
+        ]
+      ],
+      [
+        "estado_operativo",
+        "varchar",
+        true,
+        25,
+        [
+          "En ejecución",
+          "Detenido",
+          "En aprovisionamiento",
+          "Suspendido"
+        ]
+      ],
+      [
+        "criticidad",
+        "varchar",
+        true,
+        10,
+        [
+          "Crítica",
+          "Alta",
+          "Media",
+          "Baja"
+        ]
+      ],
+      [
+        "responsable_equipo",
+        "varchar",
+        true,
+        100,
+        [
+          "CloudOps",
+          "DevOps",
+          "Backend",
+          "Data",
+          "Seguridad Cloud"
+        ]
+      ],
+      [
+        "fecha_creacion",
+        "date",
+        true
+      ],
+      [
+        "costo_mensual_usd",
+        "decimal",
+        true
+      ]
+    ]
   }
 }

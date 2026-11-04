@@ -105,6 +105,8 @@ function valueFor(field: Field, value: unknown) {
     const text = String(value);
     if (!/^-?\d{1,8}(\.\d{1,2})?$/.test(text))
       fail(field.name + ' requiere DECIMAL(10,2)');
+    if (field.name === 'costo_mensual_usd' && text.startsWith('-'))
+      fail(field.name + ' no puede ser negativo');
     return text;
   }
   if (field.type === 'int') {
@@ -463,12 +465,6 @@ export class InventariosService {
     return Prisma.sql`ORDER BY ${order} ${Prisma.raw(direction.toUpperCase())} NULLS LAST${tie}`;
   }
   metadata(area: string) {
-    if (['hardware', 'cloud'].includes(area))
-      return {
-        enabled: false,
-        area,
-        reason: 'Pendiente de recibir los atributos aprobados',
-      };
     const config = inventoryConfig(area);
     return {
       enabled: true,

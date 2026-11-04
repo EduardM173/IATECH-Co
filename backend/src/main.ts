@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { originAllowed } from './auth/tenant';
 
 async function bootstrap() {
   if (!process.env.DATABASE_URL) {
@@ -16,7 +17,11 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allowed: boolean) => void,
+    ) => callback(null, !origin || originAllowed(origin)),
+    credentials: true,
   });
 
   app.useGlobalPipes(

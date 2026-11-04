@@ -6,6 +6,7 @@ import {
   Req,
   UseGuards,
   ValidationPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { SessionGuard } from '../auth/session.guard';
 import type { AuthenticatedRequest } from '../auth/session.guard';
@@ -31,6 +32,8 @@ export class SeguridadController {
     query: ActividadQueryDto,
     @Req() request: AuthenticatedRequest,
   ) {
+    if (process.env.FEATURE_SECURITY_ACTIVITY !== 'true')
+      throw new NotFoundException('Función no disponible');
     return this.service.listar(query, request.sessionUser);
   }
 }

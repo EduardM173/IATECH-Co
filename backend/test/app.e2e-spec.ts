@@ -10,6 +10,7 @@ jest.mock('database', () => ({
     $disconnect: jest.fn(),
     $transaction: jest.fn(),
     usuario: { findUnique: jest.fn() },
+    sesionAcceso: { findUnique: jest.fn() },
     activo: { findMany: jest.fn(), count: jest.fn() },
   },
 }));
@@ -17,6 +18,7 @@ jest.mock('database', () => ({
 interface MockPrisma {
   $transaction: jest.Mock;
   usuario: { findUnique: jest.Mock };
+  sesionAcceso: { findUnique: jest.Mock };
   activo: { findMany: jest.Mock; count: jest.Mock };
 }
 
@@ -27,19 +29,40 @@ function getPrismaMock(): MockPrisma {
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   const previousSecret = process.env.AUTH_SECRET;
+  const previousTenantRequirement = process.env.TENANT_REQUIRE_SUBDOMAIN;
+  const sessionId = 'a'.repeat(64);
+
+  function hardwareRequest(path: string) {
+    return request(app.getHttpServer())
+      .get(path)
+      .set('Host', 'hardware.localhost')
+      .set('Origin', 'http://hardware.localhost:5173')
+      .set('Authorization', `Bearer ${signSession(1, sessionId, 'hardware')}`);
+  }
 
   beforeAll(() => {
     process.env.AUTH_SECRET =
       'integration-test-secret-with-more-than-32-characters';
+    process.env.TENANT_REQUIRE_SUBDOMAIN = 'true';
   });
 
   afterAll(() => {
     if (previousSecret === undefined) delete process.env.AUTH_SECRET;
     else process.env.AUTH_SECRET = previousSecret;
+    if (previousTenantRequirement === undefined)
+      delete process.env.TENANT_REQUIRE_SUBDOMAIN;
+    else process.env.TENANT_REQUIRE_SUBDOMAIN = previousTenantRequirement;
   });
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    getPrismaMock().sesionAcceso.findUnique.mockResolvedValue({
+      id: sessionId,
+      id_usuario: 1,
+      ambito: 'hardware',
+      revocada: null,
+      expira: new Date(Date.now() + 60_000),
+    });
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -72,10 +95,10 @@ describe('AppController (e2e)', () => {
       estado: 'ACTIVO',
       categoria: { nombre_categoria: 'HARDWARE' },
     });
-    await request(app.getHttpServer())
-      .get('/activos/seguridad')
-      .set('Authorization', `Bearer ${signSession(1)}`)
-      .expect(403);
+    await hardwareRequest('/activos/seguridad').expect(403);
+    expect(prisma.sesionAcceso.findUnique).toHaveBeenCalledWith({
+      where: { id: sessionId },
+    });
   });
 
   it('permite listar activos de su área', async () => {
@@ -91,9 +114,7 @@ describe('AppController (e2e)', () => {
     prisma.activo.count.mockReturnValue(Promise.resolve(0));
     prisma.$transaction.mockResolvedValue([[], 0]);
 
-    await request(app.getHttpServer())
-      .get('/activos/hardware?page=1&pageSize=20')
-      .set('Authorization', `Bearer ${signSession(1)}`)
+    await hardwareRequest('/activos/hardware?page=1&pageSize=20')
       .expect(200, {
         data: [],
         meta: { page: 1, pageSize: 20, total: 0, totalPages: 0 },
@@ -112,9 +133,7 @@ describe('AppController (e2e)', () => {
       estado: 'ACTIVO',
       categoria: { nombre_categoria: 'HARDWARE' },
     });
-    await request(app.getHttpServer())
-      .get('/activos/hardware?pageSize=abc')
-      .set('Authorization', `Bearer ${signSession(1)}`)
+    await hardwareRequest('/activos/hardware?pageSize=abc')
       .expect(400);
     expect(prisma.activo.findMany).not.toHaveBeenCalled();
   });

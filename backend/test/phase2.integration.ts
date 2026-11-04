@@ -568,12 +568,17 @@ async function main() {
       .set('Cookie', areaCookie)
       .expect(401);
     await request(server)
+      .get('/auth/me')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', centralCookie)
+      .expect(401);
+    await request(server)
       .post('/auth/logout')
       .set('Origin', 'http://localhost:5173')
       .set('Cookie', centralCookie)
       .set('X-IATECH-CSRF', '1')
-      .expect(201);
-    checks += 10;
+      .expect(401);
+    checks += 11;
     const soft = sessions.software;
     const softAuth = 'Bearer ' + soft.token;
     const softOrigin = 'http://software.localhost:5173';
